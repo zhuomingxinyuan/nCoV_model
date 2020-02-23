@@ -24,3 +24,13 @@ class Result:
 
     def get_df(self):
         return self._d
+
+
+def print_with_title(title, body):
+    print("")
+    print("-" * 10 + title.upper() + "-" * 10)
+    print(body)
+    print("-" * 10 + "-" * len(title) + "-" * 10)
+
+
+# print_with_title(title="title", body="this is body")
