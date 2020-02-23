@@ -8,7 +8,6 @@ from src.utilities import check_type, print_with_title
 import operator
 import copy
 
-
 # class BedService:
 #     def __init__(self, total_bed_number: int):
 #         self.total_bed_number: int = total_bed_number
