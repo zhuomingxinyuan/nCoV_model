@@ -26,11 +26,12 @@ class Result:
         return self._d
 
 
-def print_with_title(title, body):
+def print_with_title(title, body=None):
     print("")
     print("-" * 10 + title.upper() + "-" * 10)
     print(body)
-    print("-" * 10 + "-" * len(title) + "-" * 10)
+    if body is not None:
+        print("-" * 10 + "-" * len(title) + "-" * 10)
 
 
 # print_with_title(title="title", body="this is body")

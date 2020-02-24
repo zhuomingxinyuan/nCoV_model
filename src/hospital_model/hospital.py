@@ -1,12 +1,14 @@
-import abc
 from typing import Dict
 
-from bed import BedContainer
+from src.hospital_model.bed import BedContainer
 # from src.patient import Status
-from utilities import check_type, print_with_title
+from src.hospital_model.parameters import INIT_MOBILE_BED_NUMBER
+from src.hospital_model.patient import Status
+from src.hospital_model.utilities import print_with_title
 
 import operator
 import copy
+
 
 # class BedService:
 #     def __init__(self, total_bed_number: int):
@@ -21,7 +23,7 @@ import copy
 #         check_type(patient_container, PatientContainer)
 #         waiting_patients = patient_container.get_patient_by_have_bed(status, have_bed=False)
 #         print(f"There are {len(waiting_patients)} whose status are {status}, they are waiting for bed")
-#         print(f"There are {self.available_bed_number} available beds in the hospital")
+#         print(f"There are {self.available_bed_number} available beds in the hospital_model")
 #         if len(waiting_patients) > self.available_bed_number:
 #             for i in range(self.available_bed_number):
 #                 waiting_patients[i].have_bed = True
@@ -115,7 +117,6 @@ class HospitalModel:
     def __init__(self, init_bed_number: int):
         print("HospitalModel initiated....")
         self.mobile_hospital = MobileHospital(init_bed_number)  # 方舱医院初始化
-        self.designated_hospital = DesignatedHospitals(init_bed_number)  # 定点医院初始化
 
     # TODO: agree on the handshake data structure
     # Assume following data structure
@@ -134,15 +135,23 @@ class HospitalModel:
         return self.send_to_hospital(patients)
 
     def send_to_hospital(self, patients: Dict):
-        # mild are sent to mobile hospital
+        """
+        Dispatch patients to different hospitals according to their severity
+        :param patients: dictionary ie {"mild": [0, 2, 3, 4], "severe": [1, 2, 3]}
+        :return:
+        {"mild":   {"accepted":[0, 1, 2, 3], "rejected":[0, 1, 1, 1]},
+         "severe": {"accepted":[0, 0, 2, 1], "rejected":[0, 1, 1, 0]}}
+        """
+        # mild are sent to mobile hospital_model
+        result_dict = {}
         if 'mild' in patients.keys():
             accepted, rejected = self.mobile_hospital.assign_bed(patients['mild'])
+            result_dict['mild'] = {"accepted": accepted,
+                                   "rejected": rejected}
         # TODO: severe patients are sent to designated hospitals
         if 'severe' in patients.keys():
-            pass
-
-        # return {"accepted": {"mild": [0, 0, 0, 3], "severe": [0, 0, 0]},
-        #         "rejected": {"mild": [0, 2, 3, 1], "severe": [1, 2, 3]}}
+            print("Designated hospital model not implemented")
+        return result_dict
 
 
 class Hospital:
@@ -157,25 +166,36 @@ class MobileHospital(Hospital):
         super().__init__(init_bed_number)
 
     def assign_bed(self, patients: list) -> tuple:
+        """
+        This piece of logic is used to assign bed to the patients according to current bed availability and their courses
+        :param patients: list of patients, index represents course, value represents number of patients
+        :return: list of patients being taken, list oa patients being rejected
+        Example:
+            patients_accepted = [0, 0, 0, 3]
+            patients_rejected = [0, 2, 3, 1]
+        """
         print(f"{sum(patients)} patients have been sent to {self.__class__.__name__}")
-        # TODO: FOR OUQI: write the logic to assign bed if available
-        available_bed = len(self.bed_container.get_empty_bed())
-        # available_bed = 4
-        # patients = [1,2,3,4]
-        patients_received = copy.copy(patients) # keep the original copy
-        for i in range(len(patients)):
-            if available_bed <= int(patients[-i-1]): # odd way of coding. It'll be more natural to put old patients at the beginning of the list and append new patients to the end of the list as a convention. 
-                patients[-i-1] -= available_bed
-                available_bed = 0
+        available_bed_count = len(self.get_available_beds())
+        patients_rejected = copy.copy(patients)  # keep the original copy
+        for i in range(len(patients_rejected)):
+            if available_bed_count <= int(patients_rejected[-i - 1]):
+                patients_rejected[-i - 1] -= available_bed_count
+                available_bed_count = 0
             else:
-                available_bed -= patients[-i-1]
-                patients[-i-1] = 0
-        patients_taken = list(map(operator.sub, patients_received, patients)) # item by item subtraction to get patients assigned to beds (accepted patients)
-        print (available_bed, patients_taken, patients)  # return 0 [0, 0, 0, 4] [1, 2, 3, 0]
-        return patients_taken, patients 
-        # accepted = [0, 0, 0, 3]
-        # rejected = [0, 2, 3, 1]
-        # return accepted, rejected
+                available_bed_count -= patients_rejected[-i - 1]
+                patients_rejected[-i - 1] = 0
+        # item by item subtraction to get patients assigned to beds (accepted patients)
+        patients_accepted = list(map(operator.sub, patients, patients_rejected))
+        # print(available_bed_count, patients_accepted, patients_rejected)
+        self.bed_container.allocate_beds(patients_list=patients_accepted, status=Status.MILD)
+
+        print(f"Patients accepted: {patients_accepted}")
+        print(f"Patients rejected: {patients_rejected}")
+        print(f"Available beds: {len(self.get_available_beds())}")
+        return patients_accepted, patients_rejected
+
+    def get_available_beds(self):
+        return self.bed_container.get_empty_beds()
 
 
 # 定点医院
@@ -187,8 +207,6 @@ class DesignatedHospitals(Hospital):
         pass
 
 
-INIT_BED_NUMBER = 100
-model = HospitalModel(INIT_BED_NUMBER)
-model.receive_patient(patients={"mild": [0, 2, 3, 4], "severe": [1, 2, 3], "whatever": []})
-# OUQI thinks that it is better to interpret the list in reverse order, so that we append new patients to the end of the list instead of inserting them to the beginning. This is because pushing old patients backward in list is a more costly operation than appending. Also, when I assign patients to bed, it is more natural to go from the beginning of the list in a for loop rather than using minus indices. So it will be more convenient to put older and higher priority patients to the start of the list.  
-# model.send_to_hospital()
+if __name__ == '__main__':
+    model = HospitalModel(6)
+    model.receive_patient(patients={"mild": [0, 2, 3, 4], "severe": [1, 2, 3], "whatever": []})
