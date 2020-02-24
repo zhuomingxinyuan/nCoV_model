@@ -1,10 +1,12 @@
 import abc
 from typing import Dict
 
-from src.bed import BedContainer
+from bed import BedContainer
 # from src.patient import Status
-from src.utilities import check_type, print_with_title
+from utilities import check_type, print_with_title
 
+import operator
+import copy
 
 # class BedService:
 #     def __init__(self, total_bed_number: int):
@@ -157,7 +159,20 @@ class MobileHospital(Hospital):
     def assign_bed(self, patients: list) -> tuple:
         print(f"{sum(patients)} patients have been sent to {self.__class__.__name__}")
         # TODO: FOR OUQI: write the logic to assign bed if available
-        available_bed = self.bed_container.get_empty_bed()
+        available_bed = len(self.bed_container.get_empty_bed())
+        # available_bed = 4
+        # patients = [1,2,3,4]
+        patients_received = copy.copy(patients) # keep the original copy
+        for i in range(len(patients)):
+            if available_bed <= int(patients[-i-1]): # odd way of coding. It'll be more natural to put old patients at the beginning of the list and append new patients to the end of the list as a convention. 
+                patients[-i-1] -= available_bed
+                available_bed = 0
+            else:
+                available_bed -= patients[-i-1]
+                patients[-i-1] = 0
+        patients_taken = list(map(operator.sub, patients_received, patients)) # item by item subtraction to get patients assigned to beds (accepted patients)
+        print (available_bed, patients_taken, patients)  # return 0 [0, 0, 0, 4] [1, 2, 3, 0]
+        return patients_taken, patients 
         # accepted = [0, 0, 0, 3]
         # rejected = [0, 2, 3, 1]
         # return accepted, rejected
@@ -175,4 +190,5 @@ class DesignatedHospitals(Hospital):
 INIT_BED_NUMBER = 100
 model = HospitalModel(INIT_BED_NUMBER)
 model.receive_patient(patients={"mild": [0, 2, 3, 4], "severe": [1, 2, 3], "whatever": []})
+# OUQI thinks that it is better to interpret the list in reverse order, so that we append new patients to the end of the list instead of inserting them to the beginning. This is because pushing old patients backward in list is a more costly operation than appending. Also, when I assign patients to bed, it is more natural to go from the beginning of the list in a for loop rather than using minus indices. So it will be more convenient to put older and higher priority patients to the start of the list.  
 # model.send_to_hospital()
