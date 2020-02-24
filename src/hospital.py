@@ -156,23 +156,23 @@ class MobileHospital(Hospital):
     def __init__(self, init_bed_number: int):
         super().__init__(init_bed_number)
 
-    def assign_bed(self, mild_patients: list) -> tuple:
-        print(f"{sum(mild_patients)} patients have been sent to {self.__class__.__name__}")
+    def assign_bed(self, patients: list) -> tuple:
+        print(f"{sum(patients)} patients have been sent to {self.__class__.__name__}")
         # TODO: FOR OUQI: write the logic to assign bed if available
         available_bed = len(self.bed_container.get_empty_bed())
         # available_bed = 4
         # patients = [1,2,3,4]
-        mild_patients_received = copy.copy(mild_patients) # keep the original copy
-        for i in range(len(mild_patients)):
-            if available_bed <= int(mild_patients[-i-1]): # odd way of coding. It'll be more natural to put old patients at the beginning of the list and append new patients to the end of the list as a convention. 
-                mild_patients[-i-1] -= available_bed
+        patients_received = copy.copy(patients) # keep the original copy
+        for i in range(len(patients)):
+            if available_bed <= int(patients[-i-1]): # odd way of coding. It'll be more natural to put old patients at the beginning of the list and append new patients to the end of the list as a convention. 
+                patients[-i-1] -= available_bed
                 available_bed = 0
             else:
-                available_bed -= mild_patients[-i-1]
-                mild_patients[-i-1] = 0
-        mild_patients_taken = list(map(operator.sub, mild_patients_received, mild_patients)) # item by item subtraction to get patients assigned to beds (accepted patients)
-        print (available_bed, mild_patients_taken, mild_patients)  # return 0 [0, 0, 0, 4] [1, 2, 3, 0]
-        return mild_patients_taken, mild_patients 
+                available_bed -= patients[-i-1]
+                patients[-i-1] = 0
+        patients_taken = list(map(operator.sub, patients_received, patients)) # item by item subtraction to get patients assigned to beds (accepted patients)
+        print (available_bed, patients_taken, patients)  # return 0 [0, 0, 0, 4] [1, 2, 3, 0]
+        return patients_taken, patients 
         # accepted = [0, 0, 0, 3]
         # rejected = [0, 2, 3, 1]
         # return accepted, rejected
