@@ -28,11 +28,11 @@ def daily_cumu(day, mu, std):
 	return prob
 
 def plot_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean, better_std, worse_mean, worse_std):
-	better_list=[]
-	worse_list=[]
-	better_cumu_list=[]
-	worse_cumu_list=[]
-	remain_list=[]
+	better_list=[] # daily increment, following normal distribution
+	worse_list=[] # daily increment, following normal distribution
+	better_cumu_list=[] # cumulative record, following the shape of a cumulative density function
+	worse_cumu_list=[] # cumulative record, following the shape of a cumulative density function
+	remain_list=[] # those who remain in the same medical status
 	dates=list(range(days))
 	better_cumu=0
 	worse_cumu=0
@@ -86,10 +86,10 @@ if __name__ == '__main__':
 	better_std=5
 	worse_mean=7
 	worse_std=3
-	batch_population=100
+	batch_population=100 # set to 1 if we want the probability instead of number of people in the batch as outputs.
 	batch_list=np.ones(days)*batch_population
 	print("batch_list = ", batch_list)
-	batch_list=intervention_take_out_patients(10, 20, batch_list)
+	# batch_list=intervention_take_out_patients(10, 20, batch_list)
 	print("new batch_list = ", batch_list)
 	better_prob_list=batch_list*better_prob
 	print("better_prob_list = ", better_prob_list)
@@ -97,5 +97,7 @@ if __name__ == '__main__':
 	print("worse_prob_list = ", worse_prob_list)
 	better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list=plot_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean, better_std, worse_mean, worse_std)
 	print("remain_list = ", remain_list)
+	print("better_cumu_list = ", better_cumu_list)
+	print("worse_prob_list = ", worse_prob_list)
 	# probability_dict={"better": 0.2, "worse": 0.3}
 	# change_state(probability_dict)
