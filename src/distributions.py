@@ -32,25 +32,30 @@ def plot_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean
 	worse_list=[]
 	better_cumu_list=[]
 	worse_cumu_list=[]
-	# remain_list=[]
+	remain_list=[]
 	dates=list(range(days))
 	better_cumu=0
 	worse_cumu=0
+	remain=batch_list[0]
 	for t in dates:
-		better=daily_prob(t, better_mean, better_std)*better_prob_list[t]
-		worse=daily_prob(t, worse_mean, worse_std)*worse_prob_list[t]
+		if remain>0 :
+			better=daily_prob(t, better_mean, better_std)*better_prob_list[t]
+			worse=daily_prob(t, worse_mean, worse_std)*worse_prob_list[t]
+		else:
+			better=0
+			worse=0
 		better_cumu+=better # set as a counter instead of recalculating cumulative probability for easy implementation of interventions.
 		worse_cumu+=worse # set as a counter instead of recalculating cumulative probability for easy implementation of interventions.
-		# remain=batch_list[t]-better_cumu-worse_cumu
+		remain=batch_list[t]-better_cumu-worse_cumu
 		better_list.append(better)
 		worse_list.append(worse)
 		better_cumu_list.append(better_cumu)
 		worse_cumu_list.append(worse_cumu)
-		# remain_list.append(remain)
+		remain_list.append(remain)
 	# print("better_list = " , better_list)
 	# print("worse_list = ", worse_list)
-	out_list=list(map(operator.add, better_cumu_list, worse_cumu_list))
-	remain_list=list(map(operator.sub, batch_list, out_list))
+	# out_list=list(map(operator.add, better_cumu_list, worse_cumu_list))
+	# remain_list=list(map(operator.sub, batch_list, out_list))
 	plt.plot(dates, better_list, color='grey', marker='o', markersize=3, linestyle='--', label='Better_daily(mean=7,std=5)')
 	plt.plot(dates, worse_list, color='red', marker='o', markersize=3, linestyle='--', label='Worse_daily(mean=7,std=3)')
 	plt.plot(dates, better_cumu_list, color='grey', marker='o', markersize=3, linestyle='-', label='Better_cumu(mean=10,std=5)')
