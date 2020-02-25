@@ -86,6 +86,13 @@ def intervention_hospital_supply_increase(date, new_better_prob_ratio, new_worse
 	return better_prob_list, worse_prob_list
 
 
+def cal_new_better_worse_ratios(breathing_machine_supply_rate, oxygen_supply_rate, better_prob, worse_prob):
+	new_better_prob=better_prob*breathing_machine_supply_rate*oxygen_supply_rate
+	new_worse_prob=1-new_better_prob
+	new_better_prob_ratio=new_better_prob/better_prob
+	new_worse_prob_ratio=new_worse_prob/worse_prob
+	return new_better_prob_ratio, new_worse_prob_ratio
+
 
 if __name__ == '__main__':
 	days=40
@@ -98,13 +105,14 @@ if __name__ == '__main__':
 	batch_population=100 # set to 1 if we want the probability instead of number of people in the batch as outputs.
 	batch_list=np.ones(days)*batch_population
 	print("batch_list = ", batch_list)
-	batch_list=intervention_take_out_patients(10, 20, batch_list) # how intervention happens once. Need to put in a loop to intervene everyday.
+	# batch_list=intervention_take_out_patients(10, 20, batch_list) # how intervention happens once. Need to put in a loop to intervene everyday.
 	print("new batch_list = ", batch_list)
 	better_prob_list=batch_list*better_prob
 	print("better_prob_list = ", better_prob_list)
 	worse_prob_list=batch_list*worse_prob
 	print("worse_prob_list = ", worse_prob_list)
-	better_prob_list, worse_prob_list=intervention_hospital_supply_increase(5, 1.4, 0.2, better_prob_list, worse_prob_list) # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies. 
+	new_better_prob_ratio, new_worse_prob_ratio=cal_new_better_worse_ratios(0.5, 0.5, better_prob, worse_prob)
+	better_prob_list, worse_prob_list=intervention_hospital_supply_increase(5, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list) # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies. 
 	print("better_prob_list = ", better_prob_list)
 	print("worse_prob_list = ", worse_prob_list)
 	better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list=plot_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean, better_std, worse_mean, worse_std)
