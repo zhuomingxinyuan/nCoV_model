@@ -63,7 +63,7 @@ def plot_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean
 	plt.plot(dates, remain_list, color='yellow', marker='o', markersize=3, linestyle='-', label='Remain population')
 	plt.plot(dates, batch_list, color='blue', marker='o', markersize=3, linestyle='-',label='Batch population')
 	plt.xlabel('Days')
-	plt.ylabel('Probability')
+	plt.ylabel('Batch patient number')
 	plt.legend(loc='upper right')
 	plt.show()
 	plt.close()
@@ -78,6 +78,15 @@ def intervention_take_out_patients(date, take_number, batch_list):
 	return batch_list #, better_prob_list, worse_prob_list
 
 
+def intervention_hospital_supply_increase(date, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list):
+	for i in range(date, len(better_prob_list)):
+		better_prob_list[i]*=new_better_prob_ratio
+	for i in range(date, len(worse_prob_list)):
+		worse_prob_list[i]*=new_worse_prob_ratio		
+	return better_prob_list, worse_prob_list
+
+
+
 if __name__ == '__main__':
 	days=40
 	better_prob=0.7
@@ -89,11 +98,14 @@ if __name__ == '__main__':
 	batch_population=100 # set to 1 if we want the probability instead of number of people in the batch as outputs.
 	batch_list=np.ones(days)*batch_population
 	print("batch_list = ", batch_list)
-	# batch_list=intervention_take_out_patients(10, 20, batch_list)
+	batch_list=intervention_take_out_patients(10, 20, batch_list) # how intervention happens once. Need to put in a loop to intervene everyday.
 	print("new batch_list = ", batch_list)
 	better_prob_list=batch_list*better_prob
 	print("better_prob_list = ", better_prob_list)
 	worse_prob_list=batch_list*worse_prob
+	print("worse_prob_list = ", worse_prob_list)
+	better_prob_list, worse_prob_list=intervention_hospital_supply_increase(5, 1.4, 0.2, better_prob_list, worse_prob_list) # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies. 
+	print("better_prob_list = ", better_prob_list)
 	print("worse_prob_list = ", worse_prob_list)
 	better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list=plot_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean, better_std, worse_mean, worse_std)
 	print("remain_list = ", remain_list)
