@@ -2,6 +2,11 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+from enum import Enum
+import pandas as pd
+import numpy.matlib
+from pandas import DataFrame
+import time
 
 # 用于模拟疫情变化的文件
 # 输入参数：
@@ -101,6 +106,25 @@ class HospitalAcceptObj:
         self.SevereMan=SevereMan
         self.MildMan=MildMan
 
+#class IllMan:
+    #id+
+    #id=0
+    #状态列表，表示它的病人状态
+    #StatusList=DataFrame()
+    #表示正在生病的第几天
+    #nowDay=0
+    #def __init__(self,id,SimulateDay):
+
+        #self.id=id
+        #for i in range(SimulateDay):
+        #    self.StatusList.append(IllManStatus.ASYM)
+#代表状态
+class IllManStatus(Enum):
+    ASYM=1 #无症状
+    MILD=2 #轻症
+    SEVERE=3 #重症
+    DEAD=4 #死亡
+    RECOVERY=5 #痊愈
 
 
 # 每批次对象的
@@ -120,9 +144,12 @@ class PerBatchData:
     # 病程系数对象列表,存放每日病程系数。
     # 依次存放：死亡、恢复、重症、轻症
     # 各项内容均为列表对象array.
-    # 分别关键字为：dead,recovery,servere,mild
+    # 分别关键字为：Dead,Recovery,Severe,Mild,Asym
 
     DiseaseCourse = {}
+
+    #病人对象数据存储对象
+    IllManDataFrame=DataFrame()
     #
     # 痊愈系数
     # RecoveryCourse=[]
@@ -180,7 +207,7 @@ class Epidemic:
     def Simulate(self):
 
         for i in range(self.DayofStimulate):
-            # print("do sth simulate")
+            print("do "+str(i)+"sth simulate")
 
             # 每日模拟
 
@@ -240,11 +267,11 @@ class Epidemic:
                     self.ChangeDiseaseCoursse(perBatchData, perBatchData.NowDayIndex)
 
                 # 将当前批次数据汇总到当日汇总数据中。
-                perDayData.DeadMan += perBatchData.DiseaseCourse["Dead"][perBatchData.NowDayIndex]
-                perDayData.RecoveryMan += perBatchData.DiseaseCourse["Recovery"][perBatchData.NowDayIndex]
-                perDayData.SevereMan += perBatchData.DiseaseCourse["Severe"][perBatchData.NowDayIndex]
-                perDayData.MildMan += perBatchData.DiseaseCourse["Mild"][perBatchData.NowDayIndex]
-                perDayData.AsymMan += perBatchData.DiseaseCourse["Asym"][perBatchData.NowDayIndex]
+                perDayData.DeadMan += perBatchData.DiseaseCourse["DEAD"][perBatchData.NowDayIndex]
+                perDayData.RecoveryMan += perBatchData.DiseaseCourse["RECOVERY"][perBatchData.NowDayIndex]
+                perDayData.SevereMan += perBatchData.DiseaseCourse["SEVERE"][perBatchData.NowDayIndex]
+                perDayData.MildMan += perBatchData.DiseaseCourse["MILD"][perBatchData.NowDayIndex]
+                perDayData.AsymMan += perBatchData.DiseaseCourse["ASYM"][perBatchData.NowDayIndex]
             # 所有批次的数据更新后，则累积计算总死亡人口，总痊愈人口，进而计算未感染人数
             self.AccumuDead += perDayData.DeadMan
             self.AccumuRecovery += perDayData.RecoveryMan
@@ -272,6 +299,7 @@ class Epidemic:
 
     # 产生某一批次人员的病程,这种方法是一开始就创建整个病程。
     # 比较适用于没有医院介入的情况。
+    # 以下这部分代码已没有使用。
     def CreateDiseaseCourse(self, perBatchData, courseParam):
         # perBatchData:每一批次的初始化数据
         # courseseParam:病程参数,应可能根据需要进行调整
@@ -279,6 +307,7 @@ class Epidemic:
         #模拟时间，考虑从无症，转轻症，再转重症，转死亡，病程延长，所以会把这个时间向后拓展，
         # 先假定一个比较大的时间段
         simulateDays = self.DayofStimulate+30
+
 
         #perBatchData.MildMan = perBatchData.population
         # ——实际计算过程---
@@ -292,15 +321,18 @@ class Epidemic:
         #整个期间内，需要从无症状转轻症的人员
         asym2mildNum=perBatchData.Population-asymptomNum
 
+
         #产生无症状人员，转换为健康状态的分布。
         asym2RecoveryNormal=np.random.normal(courseParam["AverAsym2Recovery"], courseParam["varianceAsym2Recovery"],
                                              asymptomNum)
-        asym2RecoveryCountPerDayNP = np.histogram(asym2RecoveryNormal, bins=range(simulateDays))[0]
+        asym2RecoveryCountPerDayNP = np.histogram(asym2RecoveryNormal, bins=range(simulateDays+1))[0]
+
+
         # 产生无症状转轻症的在第几天数量的正态分布
         asym2mildNormal = np.random.normal(courseParam["AverAsym2Mild"], courseParam["varianceAsym2Mild"],
                                            asym2mildNum)
         # 统计直方图，获得第几天有几个无症状转轻症。
-        asym2mildCountPerDayNP = np.histogram(asym2mildNormal, bins=range(simulateDays))[0]
+        asym2mildCountPerDayNP = np.histogram(asym2mildNormal, bins=range(simulateDays+1))[0]
         #总人口减去每天汇总的从无症状转轻症的人,以及无症状转健康的人汇总，得到每天无症状总人数
         asymCountPerDayNP=perBatchData.Population-np.cumsum(asym2mildCountPerDayNP)-np.cumsum(asym2RecoveryCountPerDayNP)
 
@@ -309,8 +341,12 @@ class Epidemic:
         recoveryNormal=np.array([])
         for tempasym2mildNum in asym2mildCountPerDayNP:
             #如果某日人数>0,即有转为轻症的人，则计算，否则跳过
+
             if (tempasym2mildNum > 0):
 
+
+
+                #df.loc()
                 # 轻症转重症率：
                 # 获得这批无症状转轻症的人，在以后轻症转重症的数量
                 mild2SevereNum = int(tempasym2mildNum * courseParam["Mild2SeverePercent"])
@@ -334,7 +370,7 @@ class Epidemic:
             i=i+1
 
         # 获得第几天有几个轻症转重症。暂时不考虑开始时就有重症的
-        mild2SevereCountPerDayNP = np.histogram(mild2SevereNormal, bins=range(simulateDays))[0]
+        mild2SevereCountPerDayNP = np.histogram(mild2SevereNormal, bins=range(simulateDays+1))[0]
 
         #--计算死亡人员。
         deadNormal=np.array([])
@@ -351,7 +387,7 @@ class Epidemic:
             j = j + 1
 
         # 获得第几天死几个的统计。
-        deadCountPerDayNP = np.histogram(deadNormal, bins=range(simulateDays ))[0]
+        deadCountPerDayNP = np.histogram(deadNormal, bins=range(simulateDays+1))[0]
         # 计算死亡人数，估计可能的数量的分布
 
         # 死亡累加人口
@@ -369,13 +405,51 @@ class Epidemic:
 
 
         # 获得第几天有几个痊愈。并累加统计痊愈人口。
-        recoveryCountPerDayNP = np.histogram(recoveryNormal, bins=range(simulateDays))[0]
+        recoveryCountPerDayNP = np.histogram(recoveryNormal, bins=range(simulateDays+1))[0]
         #计算恢复人员数量，需要本身从轻症转健康的人数，以及从无症转健康的人数。
         recoveryCumsum = np.cumsum(recoveryCountPerDayNP)+np.cumsum(asym2RecoveryCountPerDayNP)
 
         # 计算剩下的病人数的分数：
         # 获得轻症人口
         mildCountPerDayNP = perBatchData.Population - deadCumsum - severeCountPerDayNP - recoveryCumsum-asymCountPerDayNP
+
+        # 产生存放病人状态的矩阵。
+        # 默认使用1作为初始值，即表示无症状人员
+        data = np.matlib.ones((perBatchData.Population, simulateDays))
+        df = DataFrame(data)
+
+        i=0
+        # 在这边开始处理如何获得详细数据的状况
+        # 顺序应该是倒过来，即先处理（1）重症转死亡、（2）轻症转重症
+        # (3)轻症转痊愈，（4）无症转轻症，（5）无症转痊愈。
+
+        for i in range(simulateDays):
+            if(deadCountPerDayNP[i]>0):
+                dfdead = df[df[i] == IllManStatus.SEVERE.value].sample(deadCountPerDayNP[i])
+                df.loc[dfdead.index, i:simulateDays - 1] = IllManStatus.DEAD.value
+
+            if (mild2SevereCountPerDayNP[i]>0):
+                dfmild2Server=df[df[i] == IllManStatus.MILD.value].sample(mild2SevereCountPerDayNP[i])
+                df.loc[dfmild2Server.index, i:simulateDays - 1] = IllManStatus.SEVERE.value
+
+            if (recoveryCountPerDayNP[i]>0):
+                dfmild2Recovery=df[df[i] == IllManStatus.MILD.value].sample(recoveryCountPerDayNP[i])
+                df.loc[dfmild2Recovery.index, i:simulateDays - 1] = IllManStatus.RECOVERY.value
+
+            if (asym2mildCountPerDayNP[i]>0):
+                dfasym2Mild=df[df[i] == IllManStatus.ASYM.value].sample(asym2mildCountPerDayNP[i])
+                df.loc[dfasym2Mild.index, i:simulateDays - 1] = IllManStatus.MILD.value
+
+            if (asym2RecoveryCountPerDayNP[i]>0):
+                dfasym2Recovery=df[df[i] == IllManStatus.ASYM.value].sample(asym2RecoveryCountPerDayNP[i])
+                df.loc[dfasym2Recovery.index, i:simulateDays - 1] = IllManStatus.RECOVERY.value
+
+
+
+            i=i+1
+
+        df.describe()
+        perBatchData.IllManDataFrame = df
 
         # 获得每天轻症转重症人数/前一天轻症人数的比率
         mild2SevereDividePredayMild = mild2SevereCountPerDayNP / np.append([0], mildCountPerDayNP[0:-1])
@@ -404,6 +478,193 @@ class Epidemic:
         diseaseCourse["DieDivideSevere"] = np.nan_to_num(DieDividePredaySevere)
         diseaseCourse["Mild2SevereDivideMild"] = np.nan_to_num(mild2SevereDividePredayMild)
         diseaseCourse["RecoveryDivideMild"] = np.nan_to_num(recoveryDividePredayMild)
+
+        return diseaseCourse
+
+    # 产生某一批次人员的病程,这种方法是一开始就创建整个病程。
+    # 比较适用于没有医院介入的情况。
+    def CreateDiseaseCourse2(self, perBatchData, courseParam):
+        # perBatchData:每一批次的初始化数据
+        # courseseParam:病程参数,应可能根据需要进行调整
+
+        # 模拟时间，考虑从无症，转轻症，再转重症，转死亡，病程延长，所以会把这个时间向后拓展，
+        # 先假定一个比较大的时间段
+        simulateDays = self.DayofStimulate + 30
+
+        timetest=[]
+
+        # perBatchData.MildMan = perBatchData.population
+        # ——实际计算过程---
+
+        # 创建病程后，存放在病程列表中。
+        # 根据需要，产生**个人，然后进行分布：
+        # 假设一开始均为无症状人员，后面再部分变成轻症人员，然后再生成重症人员及恢复人员
+
+        # 一直无症状或无症状转健康的人员的产生，根据参数比率来产生
+        asymptomNum = int(perBatchData.Population * courseParam["AsymptomPercent"])
+        # 整个期间内，需要从无症状转轻症的人员
+        asym2mildNum = perBatchData.Population - asymptomNum
+
+        # 定义：长久无症状最终将转为健康状态。
+        # 产生无症状人员，转换为健康状态的分布。
+        asym2RecoveryNormal = np.random.normal(courseParam["AverAsym2Recovery"],
+                                               courseParam["varianceAsym2Recovery"],
+                                               asymptomNum)
+        asym2RecoveryCountPerDayNP = np.histogram(asym2RecoveryNormal, bins=range(simulateDays + 1))[0]
+
+        # 产生无症状转轻症的在第几天数量的正态分布
+        asym2mildNormal = np.random.normal(courseParam["AverAsym2Mild"], courseParam["varianceAsym2Mild"],
+                                           asym2mildNum)
+        # 统计直方图，获得第几天有几个无症状转轻症。
+        asym2mildCountPerDayNP = np.histogram(asym2mildNormal, bins=range(simulateDays + 1))[0]
+        # 总人口减去每天汇总的从无症状转轻症的人,以及无症状转健康的人汇总，得到每天无症状总人数
+        #asymCountPerDayNP = perBatchData.Population - np.cumsum(asym2mildCountPerDayNP) - np.cumsum(            asym2RecoveryCountPerDayNP)
+
+        #存放轻症转重症的人的分布对象。
+        mild2SevereNormal = np.array([])
+        #存放由轻症转健康的人分布
+        recoveryNormal = np.array([])
+        #存放死亡分布。
+        deadNormal = np.array([])
+
+        # 产生存放病人状态的矩阵。
+        # 默认使用1作为初始值，即表示无症状人员
+        data = np.matlib.ones((perBatchData.Population, simulateDays))
+        df = DataFrame(data)
+        df['A2M']=0
+        df['A2R']=0
+        df['M2S']=0
+        df['M2R']=0
+        df["S2D"]=0
+
+        # i 代表整批病人病程的第几日
+        i = 0
+        for i in range(simulateDays):
+            #获得当日无症转轻症的人数。
+            tempasym2mildNum=asym2mildCountPerDayNP[i]
+            # 如果某日人数>0,即有转为轻症的人，则计算，否则跳过
+            if (tempasym2mildNum > 0):
+                timetest.append(time.clock())
+                #从数据中无症状的人，且还没转化过轻症的人中随机取样。
+                dfA2M=df[(df[i] == IllManStatus.ASYM.value) & (df['A2M']==0) ].sample(tempasym2mildNum)
+                #iloc使用索引，loc使用列的名称来定位，两者不同。
+                #将第i个位置开始后面的值都变成轻症的值。并在行最后字段定义表示已经转化过。
+                df.iloc[dfA2M.index, i:simulateDays] = IllManStatus.MILD.value
+                df.loc[dfA2M.index, 'A2M']=1
+
+
+                # 轻症转重症率：
+                # 获得上面这批无症状转轻症的人，在以后转重症的数量
+                mild2SevereNum = int(tempasym2mildNum * courseParam["Mild2SeverePercent"])
+                # 产生轻症转重症的在接下来几天数量的正态分布，i表示向后推几天，病程是从今日开始向后推的。
+                mild2SevereNormalTemps = i + np.random.normal(courseParam["AverMild2SevereDay"],
+                                                              courseParam["varianceMild2SevereDay"],
+                                                              mild2SevereNum)
+                #从这批人中抽样出以后转重症的病人，
+                dfM2S=dfA2M.sample(mild2SevereNum)
+                tempindex=0
+
+                timetest.append(time.clock())
+
+                for tempday in mild2SevereNormalTemps:
+                    df.iloc[dfM2S.index[tempindex],int(tempday):simulateDays]=IllManStatus.SEVERE.value
+                    df.loc[dfM2S.index[tempindex], 'M2S']=1
+
+                    #由于假设院外的病人重症后都会死亡。所以用这批转重症的人来产生死亡人员，
+                    #每次只抽一个人，产生它死亡在第几日。
+                    deadDayTemp=np.random.normal(courseParam["AverDied"], courseParam["varianceDied"],1)
+                    deadNormal=np.append(deadNormal, deadDayTemp)
+                    #将某人在deadDayTemp设置为死亡状态。
+                    df.iloc[dfM2S.index[tempindex],int(tempday)+int(deadDayTemp):simulateDays]=IllManStatus.DEAD.value
+                    df.loc[dfM2S.index[tempindex], 'S2D'] = 1
+                    tempindex=tempindex+1
+
+                timetest.append(time.clock())
+
+                # 汇总到一个列表中。
+                mild2SevereNormal = np.append(mild2SevereNormal, mild2SevereNormalTemps)
+
+                # 计算轻症变健康的人数
+                # 轻症变健康的人数应该=轻症人数-变重症人数
+                recoveryNum = tempasym2mildNum - mild2SevereNum
+                # 产生轻症转痊愈的在第几天数量的正态分布,i表示向后推几天
+                recoveryNormalTemps = i + np.random.normal(courseParam["AverMild2RecoveryDay"],
+                                                           courseParam["varianceMild2RecoveryDay"],
+                                                           recoveryNum)
+
+                # 从刚转为轻症的这批人中获得以后要转健康的人。即剩下没有转轻症的人。
+                # 从轻症病人库中剔除掉会变成重症的那批人，剩下的即为转为健康的人。
+                dfM2R= dfA2M.iloc[~dfA2M.index.isin(dfM2S.index)]
+
+                #临时变量，代表索引值，因为dfM2R.index代表其索引号，为一个列表，
+                # 因此需要从中一个个取出其索引号。
+                tempindex = 0
+                #根据其变健康的日程安排，将病人在某日的状态改为健康。
+                for tempday in recoveryNormalTemps:
+                    df.iloc[dfM2R.index[tempindex], int(tempday):simulateDays ] = IllManStatus.RECOVERY.value
+                    df.loc[dfM2R.index[tempindex], 'M2R'] = 1
+                    tempindex = tempindex + 1
+
+                    # 汇总到一个列表中。
+                recoveryNormal = np.append(recoveryNormal, recoveryNormalTemps)
+
+            #计算出今日无症转健康的人，并安排到数据中。
+            if asym2RecoveryCountPerDayNP[i]>0:
+                tempasym2RecoveryNum=asym2RecoveryCountPerDayNP[i]
+                # 从数据中无症状的人，且还没转化过轻症的人中随机取样。
+                dfA2R = df[(df[i] == IllManStatus.ASYM.value) & (df['A2R'] == 0)].sample(tempasym2RecoveryNum)
+                df.iloc[dfA2R.index, i:simulateDays ] = IllManStatus.RECOVERY.value
+                df.loc[dfA2R.index, 'A2R'] = 1
+
+
+            #i = i + 1
+
+        #创建结果输出对象。
+        #这部分可能还需要改进，如何更高效计算。
+        i=0
+        diseaseCourse={}
+        diseaseCourse['ASYM']=[]
+        diseaseCourse['MILD'] = []
+        diseaseCourse['SEVERE'] = []
+        diseaseCourse['RECOVERY'] = []
+        diseaseCourse['DEAD'] = []
+        timetest.append(time.clock())
+        #统计每日结果
+        for i in range(simulateDays):
+            diseaseCourse['ASYM'].append(len(df[df[i]==IllManStatus.ASYM.value]))
+            diseaseCourse['MILD'].append(len(df[df[i] == IllManStatus.MILD.value]))
+            diseaseCourse['SEVERE'].append(len(df[df[i] == IllManStatus.SEVERE.value]))
+            diseaseCourse['RECOVERY'].append(len(df[df[i] == IllManStatus.RECOVERY.value]))
+            diseaseCourse['DEAD'].append(len(df[df[i] == IllManStatus.DEAD.value]))
+        timetest.append(time.clock())
+        perBatchData.IllManDataFrame = df
+        #打印一下结果
+        # for i in range(len(df)):
+        #     row = df.iloc[i].values  # 返回一个list
+        #     print(row)
+        #     pass
+
+
+        # 画图功能，画出某批次的数据。有需要时，可测试使用。
+        # plt.plot(deadCumsum, color='black', label='deadAccumu', marker='.')
+        # plt.plot(severeCountPerDayNP, color='red', label='severe', marker='.')
+        # plt.plot(mildCountPerDayNP, color='orange', label='mild', marker='.')
+        # plt.plot(recoveryCumsum, color='grey', label='recoveryAccumu', marker='.')
+        # plt.plot(asymCountPerDayNP, color='green', label='asym', marker='.')
+        # plt.legend()
+        # plt.show()
+
+        # 画图功能，画出某批次的数据。有需要时，可测试使用。
+        #plt.plot(diseaseCourse['DEAD'], color='black', label='deadAccumu', marker='.')
+        #plt.plot(diseaseCourse['SEVERE'], color='red', label='severe', marker='.')
+        #plt.plot(diseaseCourse['MILD'], color='orange', label='mild', marker='.')
+        #plt.plot(diseaseCourse['RECOVERY'], color='grey', label='recoveryAccumu', marker='.')
+        #plt.plot(diseaseCourse['ASYM'], color='green', label='asym', marker='.')
+        #plt.legend()
+        #plt.show()
+
+
+
 
         return diseaseCourse
 
@@ -496,9 +757,24 @@ class Epidemic:
         # 默认情况下，不考虑重症输入，先全部假定为轻症患者。
         # 后期有需要时再改造。
         # 生成病程
-        perBatchData.DiseaseCourse = self.CreateDiseaseCourse(perBatchData, courseParam)
+        perBatchData.DiseaseCourse = self.CreateDiseaseCourse2(perBatchData, courseParam)
 
         return perBatchData
+
+    #根据某一批次的病程来创建一批人
+    def CreateIllmanList(self,perBatchData):
+        # 先假定一个比较大的时间段
+        simulateDays = self.DayofStimulate + 30
+
+        #创建病人列表
+        #for i in range(perBatchData.Population):
+        #    illman=IllMan(i,simulateDays)
+
+
+
+
+        return
+
 
     # 调用院内模型，获得数据，应是每天运行的。
     def SendRequest2HosModel(self, dayofSimulation, preDayData):
@@ -523,6 +799,16 @@ class Epidemic:
 
     # 根据医院可接收的数量，来进行每批次人员调整。(按新的比率算法）
     def ChangeBatchsByHosAcceptObj2(self, hosAcceptObj, perBatchData, dayofCourse):
+
+        # 如果有减少重症病人
+        if hosAcceptObj.SevereMan != 0:
+            # 如果这批次现有重症<昨天医院接受重症人数,则把医院的重症病人都给这批次病人
+            if (perBatchData.DiseaseCourse["Severe"][dayofCourse - 1] > hosAcceptObj.SevereMan):
+                SeverewantToReduction=hosAcceptObj.SevereMan
+                hosAcceptObj.SevereMan = 0
+
+                #SevereReductRatio=perBatchData.DiseaseCourse["Severe"]
+
 
         return
     # 根据医院可接收的数量，来进行每批次人员调整。
