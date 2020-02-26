@@ -1,29 +1,39 @@
-# from enum import Enum
+from enum import Enum
+
+
 # from src.utilities import check_type
-#
-#
-# class Status(Enum):
-#     HEALTHY = 'HEALTHY'
-#     SEVERE = 'SEVERE'
-#     DEAD = 'DEAD'
-#
-#
-# class Patient:
-#     def __init__(self, status: Status):
-#         self.age = None  # Not used
-#         self.status: Status = status
-#         self.course_disease: int = 0
-#         # self.have_bed: bool = False
-#         # self.served_days: int = 0
-#
+
+
+class Status(Enum):
+    CURED = 'CURED'
+    MILD = 'MILD'
+    SEVERE = 'SEVERE'
+    DEAD = 'DEAD'
+
+
+class Patient:
+    def __init__(self, status: Status, course: int, next_status, next_status_day:int):
+        self.age = None  # Not used
+        self.status: Status = status
+        self.course = course
+        self.next_status = next_status
+        self.next_status_day = next_status_day
+        # self.course_disease: int = 0
+        # self.have_bed: bool = False
+        # self.served_days: int = 0
+
+
 #     def set_status(self, new_status: Status):
 #         check_type(new_status, Status)
 #         self.status = new_status
 #
 #
-# class PatientFactory:
-#     pass
-#
+
+def create_n_patients(n: int, course: int, status: Status):
+    print(f"{n} patients are created")
+    return [Patient(course=course, status=status) for i in range(n)]
+
+
 #
 # class PatientContainer:
 #     def __init__(self):
@@ -54,3 +64,7 @@
 #
 #     def get_summary(self):
 #         return [len(self.get_patient_by_status(status)) for status in Status]
+
+if __name__ == '__main__':
+    for patient in create_n_patients(status=Status.MILD, course=2, n=3):
+        print(patient, patient.course, patient.status, )

@@ -1,5 +1,5 @@
 # from src.patient import PatientContainer, Status
-# from src.hospital import BedService, VentilatorService, CureService
+# from src.hospital_model import BedService, VentilatorService, CureService
 # import matplotlib.pyplot as plt
 # from src.utilities import Result
 #
