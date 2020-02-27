@@ -82,22 +82,20 @@ def intervention_take_out_patients_change_prob_lists(date, remain_before_date_pr
 	return better_prob_list, worse_prob_list
 
 
-def intervention_hospital_supply_increase(date, new_better_prob_ratio, new_worse_prob_ratio, remain_before_date_prob, better_prob_list, worse_prob_list):
+def intervention_hospital_supply_increase(date, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list):
 	for i in range(date, len(better_prob_list)):
 		better_prob_list[i]*=new_better_prob_ratio
-		better_prob_list[i]/=remain_before_date_prob
 	for i in range(date, len(worse_prob_list)):
 		worse_prob_list[i]*=new_worse_prob_ratio
-		worse_prob_list[i]/=remain_before_date_prob		
 	return better_prob_list, worse_prob_list
 
 
-def cal_new_better_worse_ratios(breathing_machine_supply_rate, oxygen_supply_rate, better_prob, worse_prob):
-	new_better_prob=better_prob*breathing_machine_supply_rate*oxygen_supply_rate
-	new_worse_prob=1-new_better_prob
-	new_better_prob_ratio=new_better_prob/better_prob
-	new_worse_prob_ratio=new_worse_prob/worse_prob
-	return new_better_prob_ratio, new_worse_prob_ratio
+# def cal_new_better_worse_ratios(breathing_machine_supply_rate, oxygen_supply_rate, better_prob, worse_prob):
+# 	new_better_prob=better_prob*breathing_machine_supply_rate*oxygen_supply_rate
+# 	new_worse_prob=1-new_better_prob
+# 	new_better_prob_ratio=new_better_prob/better_prob
+# 	new_worse_prob_ratio=new_worse_prob/worse_prob
+# 	return new_better_prob_ratio, new_worse_prob_ratio
 
 
 if __name__ == '__main__':
@@ -128,16 +126,20 @@ if __name__ == '__main__':
 	# print("new better_prob_list = ", better_prob_list)
 	# print("new worse_prob_list = ", worse_prob_list)
 	################# this block changes hospital capability  (can toggle on and off, but has to be here, don't change order) #################################
-	breathing_machine_supply_rate=0.9
+	breathing_machine_supply_rate=0.2
 	oxygen_supply_rate=1
-	supply_change_date=5
-	new_better_prob_ratio, new_worse_prob_ratio=cal_new_better_worse_ratios(breathing_machine_supply_rate, oxygen_supply_rate, better_prob, worse_prob)
+	supply_change_date=10
+	################# this block calculates the theoretical new worse prob by enforcing constant population #########################
+	better_before_date_prob=(stats.norm.cdf(supply_change_date, better_mean, better_std)-stats.norm.cdf(0, better_mean, better_std))*better_prob
+	worse_before_date_prob=(stats.norm.cdf(supply_change_date, worse_mean, worse_std)-stats.norm.cdf(0, worse_mean, worse_std))*worse_prob
 	
-	better_before_date_prob=(stats.norm.cdf(supply_change_date-1, better_mean, better_std)-stats.norm.cdf(0, better_mean, better_std))*better_prob
-	worse_before_date_prob=(stats.norm.cdf(supply_change_date-1, worse_mean, worse_std)-stats.norm.cdf(0, worse_mean, worse_std))*worse_prob
-	remain_before_date_prob=1-better_before_date_prob-worse_before_date_prob #, remain_before_date_prob
+	better_after_date_prob=(better_prob-better_before_date_prob)*new_better_prob/better_prob
+	worse_after_date_prob=1-better_before_date_prob-worse_before_date_prob-better_after_date_prob
 
-	better_prob_list, worse_prob_list=intervention_hospital_supply_increase(supply_change_date, new_better_prob_ratio, new_worse_prob_ratio, remain_before_date_prob, better_prob_list, worse_prob_list) # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies. 
+	new_better_prob_ratio=breathing_machine_supply_rate*oxygen_supply_rate
+	new_worse_prob_ratio=worse_after_date_prob/(worse_prob-worse_before_date_prob)
+
+	better_prob_list, worse_prob_list=intervention_hospital_supply_increase(supply_change_date, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list) # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies. 
 	print("better_prob_list = ", better_prob_list)
 	print("worse_prob_list = ", worse_prob_list)
 	################### standard lines here always ################################
