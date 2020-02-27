@@ -129,6 +129,7 @@ if __name__ == '__main__':
 	breathing_machine_supply_rate=0.2
 	oxygen_supply_rate=1
 	supply_change_date=10
+	new_better_prob=better_prob*breathing_machine_supply_rate*oxygen_supply_rate
 	################# this block calculates the theoretical new worse prob by enforcing constant population #########################
 	better_before_date_prob=(stats.norm.cdf(supply_change_date, better_mean, better_std)-stats.norm.cdf(0, better_mean, better_std))*better_prob
 	worse_before_date_prob=(stats.norm.cdf(supply_change_date, worse_mean, worse_std)-stats.norm.cdf(0, worse_mean, worse_std))*worse_prob
