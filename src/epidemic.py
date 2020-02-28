@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import random
+#import random
 import matplotlib.pyplot as plt
 from enum import Enum
-import pandas as pd
+import src.SIModel as SIModel
+
+#import pandas as pd
 import numpy.matlib
 from pandas import DataFrame
-import time
+#import time
 
 # 用于模拟疫情变化的文件
 # 输入参数：
@@ -473,6 +475,13 @@ class Epidemic:
     # 进行模拟
     def Simulate(self):
 
+        InputParam={}
+        InputParam["Ro"]=self.Ro
+        InputParam["gamma"]=1/14
+
+        #模型对象，准备在下面使用的模拟模型。
+        simpleSIModel=SIModel.SimpleSIModel(InputParam)
+
         for i in range(self.DayofStimulate):
             #打印输出：表示在模拟的第几天。
             print("do "+str(i)+" day simulate")
@@ -545,7 +554,12 @@ class Epidemic:
             perDayData.CalUnInfectMan(self.AccumuDead, self.AccumuRecovery,self.AccumuHosSevere,self.AccumuHosMild)
 
             # 计算新感染人口。
-            newInfectMan = self.SIModel(self.Ro, perDayData)
+            #newInfectMan = self.SIModel(self.Ro, perDayData)
+            # 使用模型框架来计算新感染人口
+            modelrunParam={}
+            modelrunParam['perDayData']=perDayData
+            modelResult=simpleSIModel.run(modelrunParam)
+            newInfectMan=modelResult["newInfectMan"]
 
             # 更新当日数据
             perDayData.AddNewInfectMan(newInfectMan)
