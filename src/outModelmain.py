@@ -12,23 +12,59 @@ from src.epidemic import Epidemic
 #主程序，用于进行测试控制
 
 
-# 输入参数：
+# --总体模型控制参数：---
 TotalPopulation = 100000
 # 开始重症人数
 StartSevere = 0
 # 开始轻症人数
-StartMild = 900
+StartMild = 0
+# 开始无症人数：
+StartAsym=900
 # 传染率默认参数，Basic reproduction number
 Ro = 2.4
 DayofStimulate = 30
 
+# ———详细病程参数赋值——
+detailcourseParam = {}
+# 死亡率参数
+detailcourseParam["Mortality"] = 0.05
+# 平均死亡时间：轻症转重症，9天，重症死亡4天
+detailcourseParam["AverDied"] = 13
+# 死亡时间方差
+detailcourseParam["varianceDied"] = 3
+# 轻症转重症比率
+detailcourseParam["Mild2SeverePercent"] = 0.10
+# 轻症转重症平均天数
+detailcourseParam["AverMild2SevereDay"] = 5
+# 轻症转重症时间方差
+detailcourseParam["varianceMild2SevereDay"] = 2
+# 轻症转痊愈平均天数
+detailcourseParam["AverMild2RecoveryDay"] = 7
+# 轻症转痊愈时间方差
+detailcourseParam["varianceMild2RecoveryDay"] = 2
+
+#一直无症状人员占总人员的比重
+detailcourseParam["AsymptomPercent"] = 0.30
+# 无症状人员转轻症平均天数
+detailcourseParam["AverAsym2Mild"] = 7
+# 无症状人员转轻症时间方差
+detailcourseParam["varianceAsym2Mild"] =3
+# 无症状人员转痊愈平均天数
+detailcourseParam["AverAsym2Recovery"] = 14
+# 无症状人员转痊愈时间方差
+detailcourseParam["varianceAsym2Recovery"] = 3
+
+#将参数汇总起来。
 epidemicStartParam={
     "TotalPopulation":TotalPopulation,
     "StartSevere":StartSevere,
     "StartMild":StartMild,
+    "StartAsym":StartAsym,
     "Ro":Ro,
-    "DayofStimulate":DayofStimulate
+    "DayofStimulate":DayofStimulate,
+    "DetailCourseParam":detailcourseParam
 }
+#启动病程模拟对象。
 epidemic=Epidemic(epidemicStartParam)
 epidemic.Simulate()
 
