@@ -22,17 +22,21 @@ class SIModel:
 
         return True
 
-    # 使用模型现有功能进行计算。
+    # 使用模型核心功能进行计算。根据各模型实际进行拓展
     def run(self,runParam={}):
         #使用runParam作为运行参数来计算。
         self.RunParam=runParam
 
         return self.OutValues
 
+# 简单的传染病模型，作为初步模型框架。
 class SimpleSIModel(SIModel):
     #def __init__(self, InputParam):
     #    SIModel.__init__(InputParam)
 
+    #模型的核心计算过程。
+    # 不太好，就是与原来模型中的核心数据对象捆绑
+    # 有需要时，后期再解耦。
     def run(self,runParam={}):
 
         self.RunParam=runParam
@@ -42,8 +46,9 @@ class SimpleSIModel(SIModel):
         gamma=self.InputParam["gamma"]
 
         # 后设置运行参数
-
         perDayData = self.RunParam["perDayData"]
+
+        #详细的计算过程。
         # 和人口总数论理应该没有关系，但还是需要传入一个总人口。
         # N为人群总数,获得现在总人口。
         N = perDayData.Population

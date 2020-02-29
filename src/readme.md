@@ -1,3 +1,16 @@
-* 院外模型的使用方法：
-测试主程序是outModelmain.py
-主要的程序代码为epidemic.py 
+# 闄㈠妯″瀷鐨勪娇鐢ㄦ柟娉曪細
+## 璇存槑
+娴嬭瘯涓荤▼搴忔槸outModelmain.py  
+涓昏鐨勭▼搴忎唬鐮佷负epidemic.py 
+
+## 闄㈠鐥呬汉鐘舵�佽浆鎹㈠浘
+'''mermaid
+graph ID;
+鏃犵棁-->杞荤棁;
+杞荤棁-->閲嶇棁;
+閲嶇棁->姝讳骸;
+杞荤棁-->鎭㈠;
+杞荤棁-->鍖婚櫌;
+閲嶇棁-->鍖婚櫌;
+'''
+

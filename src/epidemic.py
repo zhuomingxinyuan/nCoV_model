@@ -3,7 +3,9 @@ import numpy as np
 #import random
 import matplotlib.pyplot as plt
 from enum import Enum
-import src.SIModel as SIModel
+#从同目录中引入SIModel对象类。
+from . import SIModel
+#import src.SIModel as SIModel
 
 #import pandas as pd
 import numpy.matlib
@@ -482,6 +484,7 @@ class Epidemic:
         #模型对象，准备在下面使用的模拟模型。
         simpleSIModel=SIModel.SimpleSIModel(InputParam)
 
+
         for i in range(self.DayofStimulate):
             #打印输出：表示在模拟的第几天。
             print("do "+str(i)+" day simulate")
@@ -578,37 +581,7 @@ class Epidemic:
 
 
 
-    # 传入每天的数据，进行计算。
-    # 要输出每日新感染的人数。
-    def SIModel(self, Ro, perDayData):
 
-        # 和人口总数论理应该没有关系，但还是需要传入一个总人口。
-
-        # N为人群总数,获得现在总人口。
-        N = perDayData.Population
-
-        # 使用RO来计算感染人数
-        # gamma为恢复率系数，为平均住院天数的倒数。
-        gamma = 1 / 14
-        # β为传染率系数
-        beta = gamma * Ro
-
-        # 旧感染人口为原来轻症人数和重症人数之和。
-        infectOldData = perDayData.SevereMan + perDayData.MildMan+perDayData.AsymMan
-        #print("infect old Data:" + str(infectOldData))
-        # 未来计算时，这地方应该加上一个随机系数，现暂时确定用固定的。
-
-        # 计算感染人员公式。=>未感染者的，还需要重新计算。
-        newInfectMan = int(beta * infectOldData * perDayData.UnInfectMan / N - gamma * infectOldData)
-        # 如果新感染人数>未感染人数，即已经无可感染人数，则将新感染人数设为未感染人数
-        # 以下规则还有问题。
-        # if newInfectMan>=perDayData.UnInfectMan:
-        #    newInfectMan=perDayData.UnInfectMan
-        if newInfectMan < 0:
-            newInfectMan = 0
-
-        #print("new infect man:" + str(newInfectMan))
-        return newInfectMan
 
 
     # 生成新的每批数据。
