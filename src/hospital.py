@@ -170,12 +170,14 @@ def shift_cure_ability_list(cure_ability_list_original, change_dates_original, b
 	head=cure_ability_list_original[batch_counter:]
 	tail=[head[-1]] * batch_counter
 	cure_ability_list=np.concatenate((head, tail))
+	if len(change_dates)==0:
+		change_dates=[0]
 	return cure_ability_list, change_dates
 
 
 if __name__ == '__main__':
 	#### parameters #########
-	days=41
+	days=21
 	worse_prob=0.1
 	better_prob=1-worse_prob
 	better_mean=10
@@ -183,19 +185,22 @@ if __name__ == '__main__':
 	worse_mean=7
 	worse_std=3
 	batch_population=100 # set to 1 if we want the probabilities instead of numbers of people in the batch as outputs.
+	number_of_batches = 4
 	cure_ability_list=np.ones(days)
 	change_dates=[0]
 	########### this block changes hospital capability  (can toggle on and off) #################################
 	breathing_machine_supply_list=np.ones(days)
 	oxygen_supply_list=np.ones(days)
-	oxygen_change_list=[(4,0.6)] #tuple list, with first element = date the change starts, second element=updated oxygen supply rate. List order doesn't matter
-	breathing_machine_change_list=[(0,0.8)] #tuple list, with first element = date the change starts, second element=updated machine supply rate. List order doesn't matter
+	oxygen_change_list=[(1,0.6), (9, 0.8)] #tuple list, with first element = date the change starts, second element=updated oxygen supply rate. List order doesn't matter
+	breathing_machine_change_list=[(4,0.8)] #tuple list, with first element = date the change starts, second element=updated machine supply rate. List order doesn't matter
 	cure_ability_list, change_dates = cal_cure_ability(breathing_machine_supply_list, oxygen_supply_list, oxygen_change_list, breathing_machine_change_list)
+
+	############### standard lines ###########################
 	cure_ability_list_original=copy.copy(cure_ability_list)
 	change_dates_original=copy.copy(change_dates)	
-
 	############### setting up figure plots #####################
-	number_of_batches = 3
+
+	
 	fig, axs = plt.subplots(nrows=number_of_batches+1, sharex=True)
 	plt.xlim(0, days-1)
 
