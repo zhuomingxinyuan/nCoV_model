@@ -185,15 +185,15 @@ if __name__ == '__main__':
 	worse_mean=7
 	worse_std=3
 	batch_population=100 # set to 1 if we want the probabilities instead of numbers of people in the batch as outputs.
-	number_of_batches = 3
+	number_of_batches = 4
 	cure_ability_list=np.ones(days)
 	change_dates=[0]
 	########### this block changes hospital capability  (can toggle on and off) #################################
-	# breathing_machine_supply_list=np.ones(days)
-	# oxygen_supply_list=np.ones(days)
-	# oxygen_change_list=[(1,0.6), (9, 0.8)] #tuple list, with first element = date the change starts, second element=updated oxygen supply rate. List order doesn't matter
-	# breathing_machine_change_list=[(4,0.8)] #tuple list, with first element = date the change starts, second element=updated machine supply rate. List order doesn't matter
-	# cure_ability_list, change_dates = cal_cure_ability(breathing_machine_supply_list, oxygen_supply_list, oxygen_change_list, breathing_machine_change_list)
+	breathing_machine_supply_list=np.ones(days)
+	oxygen_supply_list=np.ones(days)
+	oxygen_change_list=[(1,0.6), (9, 0.8)] #tuple list, with first element = date the change starts, second element=updated oxygen supply rate. List order doesn't matter
+	breathing_machine_change_list=[(4,0.8)] #tuple list, with first element = date the change starts, second element=updated machine supply rate. List order doesn't matter
+	cure_ability_list, change_dates = cal_cure_ability(breathing_machine_supply_list, oxygen_supply_list, oxygen_change_list, breathing_machine_change_list)
 
 	############### standard lines ###########################
 	cure_ability_list_original=copy.copy(cure_ability_list)
