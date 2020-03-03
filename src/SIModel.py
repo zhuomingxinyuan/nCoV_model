@@ -11,8 +11,8 @@ class SIModel:
     RunParam={}
     #输出结果
     OutValues={}
-    def __init__(self,InputParam):
-        self.InputParam=InputParam
+    def __init__(self,inputParam):
+        self.InputParam=inputParam
 
         return
 

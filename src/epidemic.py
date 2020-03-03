@@ -620,7 +620,7 @@ class Epidemic:
             hosAcceptObj = HospitalAcceptObj(0, 0)
 
         #一些可用的测试数据。
-        #hosAcceptObj = HospitalAcceptObj(0, 0)
+        hosAcceptObj = HospitalAcceptObj(0, 0)
         #hosAcceptObj=HospitalAcceptObj(random.randint(50,60),100)
         #hosAcceptObj = HospitalAcceptObj(2*dayofSimulation, 5*dayofSimulation)
         return hosAcceptObj
