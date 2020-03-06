@@ -32,7 +32,7 @@ class HospitalModelRunParam():
 class HospitalBatch():
     #存放批次信息
     batch_list=[]
-    #
+    #list对象代表的是每天的数据，
     better_prob_list= []
     better_prob_list_original= []
     worse_prob_list= []
@@ -179,6 +179,8 @@ class HospitalModel():
     #def intervention_hospital_supply_change_step(self,date, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list,
     #                                             worse_prob_list, better_prob_list_original, worse_prob_list_original):
     def intervention_hospital_supply_change_step(self, date, new_better_prob_ratio, new_worse_prob_ratio,batchobj):
+        # 使用原始的original数据，是因为要根据最初的状态来进行变化。
+        # 而不是用可能中间已经变化的数据来算。
         for i in range(date, len(batchobj.better_prob_list)):
             batchobj.better_prob_list[i] = batchobj.better_prob_list_original[i] * new_better_prob_ratio
         for i in range(date, len(batchobj.worse_prob_list)):
@@ -233,15 +235,19 @@ class HospitalModel():
             # print("########## change", index, "on day", t, "to cure_ability =", cure_ability_list[t], "#############\n")
             # print()
             # 新的改善率=原有的改善率*新治疗率参数（=氧气*呼吸机）
+            # 变量名称为*_prob的均为面积，
             new_better_prob = self.modelparam.better_prob * cure_ability_list[t]
             # 还是有些疑问，需要公式来说明：剩下部分的概率=剩下部分*新的改善率？
+            # (1 - stats.norm.cdf(t, self.modelparam.better_mean, self.modelparam.better_std))代表总的部分减去前面的部分，剩余后面的
             better_after_date_prob = (1 - stats.norm.cdf(t, self.modelparam.better_mean, self.modelparam.better_std)) * new_better_prob
             # print("better_bef_date_prob = ", better_bef_date_prob)
             # print("better_after_date_prob = " , better_after_date_prob)
             # print("better_total_prob = ",  better_after_date_prob+better_bef_date_prob)
 
             # print("\n")
+
             # 按改善的概率面积+恶化的概率面积=1来计算。
+            # 由于总的面积应该等于1，那么变动后的恶化的面积应该是等于1-前面好转和恶化的面积后，再减去后面好转的面积。
             worse_after_date_prob = 1 - better_bef_date_prob - worse_bef_date_prob - better_after_date_prob
             # print("worse_bef_date_prob = ", worse_bef_date_prob)
             # print("worse_after_date_prob = " , worse_after_date_prob)
@@ -257,6 +263,9 @@ class HospitalModel():
 
             new_better_prob_ratio = new_better_prob / self.modelparam.better_prob
             # print("new_better_prob_ratio = ", new_better_prob_ratio)
+            # 分母为尾巴应该有的面积，在恶化率=1时的面积，
+            # 把一整个正态分布，worse_after_date_prob：代表后面需要恶化的人数，
+            # new_worse_prob代表情况变化后，尾巴应该是多高，代表一整个拱桥的面积，（****！）
             new_worse_prob = worse_after_date_prob / (1 - stats.norm.cdf(t, self.modelparam.worse_mean, self.modelparam.worse_std))
             new_worse_prob_ratio = new_worse_prob / self.modelparam.worse_prob
             # print("new_worse_prob_ratio = ", new_worse_prob_ratio)
@@ -268,7 +277,10 @@ class HospitalModel():
             # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies.
             # print("better_prob_list = ", better_prob_list)
             # print("worse_prob_list = ", worse_prob_list)
-            # 这边做什么作用的，不清楚，
+
+            # 如果没有到最后一次（还需要下一轮进行运行），则需要更新一下新的好转和恶化总面积，给下一轮运行提供参数。
+            # 需要算出从这次干预到下次干预的变化的面积，好转或恶化的面积。
+            # (stats.norm.cdf(change_dates[index + 1], self.modelparam.better_mean,self.modelparam.better_std) 代表下一轮需要运行的面积
             if index + 1 < len(change_dates):
                 better_bef_date_prob += (stats.norm.cdf(change_dates[index + 1], self.modelparam.better_mean,self.modelparam.better_std) - stats.norm.cdf(t,self.modelparam.better_mean,self.modelparam.better_std)) * new_better_prob
                 worse_bef_date_prob += (stats.norm.cdf(change_dates[index + 1], self.modelparam.worse_mean, self.modelparam.worse_std) - stats.norm.cdf(t,self.modelparam.worse_mean,self.modelparam.worse_std)) * new_worse_prob
@@ -296,8 +308,15 @@ class HospitalModel():
 
     ### 让医力的变化反应在不同批次新增病人的正确病程日上 ###
     def shift_cure_ability_list(self,cure_ability_list_original, change_dates_original, batch_counter):
+        # batch_counter 代表第几批次
+        #把改变的日期按照批次向后延伸，因为对于第1批次的第5天，相当于第2批次的第四天。
         change_dates = [x - batch_counter for x in change_dates_original]
+        #过滤出只>0的日期，（这是相对的），范例：在第1批次的第2天改变，对于第3批次是没有意义的，因为不相关。
         change_dates = [i for i in change_dates if i >= 0]  # keep only non-zero change_dates
+        #新的数据=原始数据的后面部分，
+        # 原来新的变化过程的变动已经体现在cure_ability_list_original里面，因为原来这个已经把氧气和呼吸机整合进去。
+        # 所以变化只需要将cure_ability_list_original,进行部分截取的变化，产生对于某批次的新的医力变化过程。
+
         head = cure_ability_list_original[batch_counter:]  # 截取 batch counter 日期之后的医力list
         tail = [head[-1]] * batch_counter  # 为了让list跟原来一样长， 把最后一位数字复制几遍，补全尾巴
         cure_ability_list = np.concatenate((head, tail))
@@ -337,8 +356,10 @@ class HospitalModel():
         ### 画图 ###
         fig, axs = plt.subplots(nrows=number_of_batches + 1, sharex=True)
         plt.xlim(0, days - 1)
+        # 使用坐标轴来作为循环的，逻辑上有些问题，需要修正。
         for ax in axs:
-            # for batch_counter in range(number_of_batches): #如果后来决定不用每次都画图，可以用这一行来带for loop，然后下面turn off画图的if else部分。
+            # for batch_counter in range(number_of_batches):
+            #如果后来决定不用每次都画图，可以用这一行来带for loop，然后下面turn off画图的if else部分。
             ### last row of subplot 计算多期病人曲线总和，画在最下面的一个画框里 ###
             if batch_counter == number_of_batches:
 
