@@ -7,7 +7,7 @@ import copy
 
 def change_state(probability_dict:dict): # probability_dict={'better': 0.2, 'worse': 0.3}
 	dice=random.random()
-	# print("roll dice = ", dice)
+	print("roll dice = ", dice)
 	prob_better=probability_dict["better"]
 	prob_worse=prob_better + probability_dict["worse"]
 	if dice <= prob_better:
@@ -16,7 +16,7 @@ def change_state(probability_dict:dict): # probability_dict={'better': 0.2, 'wor
 		state="worse"
 	else:
 		state="remain"
-	# print("result state is ", state)
+	print("result state is ", state)
 	return state
 
 
@@ -93,19 +93,19 @@ def cal_cure_ability(breathing_machine_supply_list, oxygen_supply_list, oxygen_c
 	for oxygen_change_date, oxygen_supply_rate in oxygen_change_list:
 		for i in range(oxygen_change_date, len(oxygen_supply_list)):
 			oxygen_supply_list[i]=oxygen_supply_rate
-	# print("oxygen_supply_list", oxygen_supply_list)
+	print("oxygen_supply_list", oxygen_supply_list)
 	for breathing_machine_change_date, breathing_machine_supply_rate in breathing_machine_change_list:
 		for i in range(breathing_machine_change_date, len(breathing_machine_supply_list)):
 			breathing_machine_supply_list[i]=breathing_machine_supply_rate
-	# print("breathing_machine_supply_list", breathing_machine_supply_list)
+	print("breathing_machine_supply_list", breathing_machine_supply_list)
 
 	change_dates=[x[0] for x in oxygen_change_list]+[x[0] for x in breathing_machine_change_list] 
 	change_dates.sort()
 	change_dates=np.unique(change_dates)
-	# print(change_dates)
+	print(change_dates)
 
 	cure_ability_list=oxygen_supply_list*breathing_machine_supply_list   
-	# print(cure_ability_list)
+	print(cure_ability_list)
 
 	return cure_ability_list, change_dates
 
@@ -113,54 +113,54 @@ def intervention_hospital_supply_change_repeated(cure_ability_list, change_dates
 
 	better_bef_date_prob=(stats.norm.cdf(change_dates[0], better_mean, better_std))*better_prob
 	worse_bef_date_prob=(stats.norm.cdf(change_dates[0], worse_mean, worse_std))*worse_prob
-	# print("\n")
+	print("\n")
 
 	for index, t in enumerate(change_dates):
-		# print("########## change", index, "on day", t, "to cure_ability =", cure_ability_list[t], "#############\n")
-		# # print()
+		print("########## change", index, "on day", t, "to cure_ability =", cure_ability_list[t], "#############\n")
+		# print()
 
 		new_better_prob=better_prob*cure_ability_list[t]
 		better_after_date_prob=(1-stats.norm.cdf(t, better_mean, better_std))*new_better_prob
-		# print("better_bef_date_prob = ", better_bef_date_prob)
-		# print("better_after_date_prob = " , better_after_date_prob)
-		# print("better_total_prob = ",  better_after_date_prob+better_bef_date_prob)
+		print("better_bef_date_prob = ", better_bef_date_prob)
+		print("better_after_date_prob = " , better_after_date_prob)
+		print("better_total_prob = ",  better_after_date_prob+better_bef_date_prob)
 
-		# print("\n")
+		print("\n")
 
 		worse_after_date_prob=1-better_bef_date_prob-worse_bef_date_prob-better_after_date_prob
-		# print("worse_bef_date_prob = ", worse_bef_date_prob)
-		# print("worse_after_date_prob = " , worse_after_date_prob)
-		# print("worse_total_prob = ", worse_after_date_prob+worse_bef_date_prob)
+		print("worse_bef_date_prob = ", worse_bef_date_prob)
+		print("worse_after_date_prob = " , worse_after_date_prob)
+		print("worse_total_prob = ", worse_after_date_prob+worse_bef_date_prob)
 
-		# print("\n")
+		print("\n")
 
 		new_better_prob_ratio=cure_ability_list[t]
-		# print("new_better_prob_ratio = ", new_better_prob_ratio)
+		print("new_better_prob_ratio = ", new_better_prob_ratio)
 		new_worse_prob=worse_after_date_prob/(1-stats.norm.cdf(t, worse_mean, worse_std))
 		new_worse_prob_ratio=new_worse_prob/worse_prob
-		# print("new_worse_prob_ratio = ", new_worse_prob_ratio)
-		# print("new_better_prob = ", new_better_prob)
-		# print("new_worse_prob = ", new_worse_prob)
+		print("new_worse_prob_ratio = ", new_worse_prob_ratio)
+		print("new_better_prob = ", new_better_prob)
+		print("new_worse_prob = ", new_worse_prob)
 		better_prob_list, worse_prob_list=intervention_hospital_supply_change_step(t, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original) # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies. 
-		# # print("better_prob_list = ", better_prob_list)
-		# # print("worse_prob_list = ", worse_prob_list)
+		# print("better_prob_list = ", better_prob_list)
+		# print("worse_prob_list = ", worse_prob_list)
 		if index+1<len(change_dates):
 			better_bef_date_prob+=(stats.norm.cdf(change_dates[index+1], better_mean, better_std)-stats.norm.cdf(t, better_mean, better_std))*new_better_prob
 			worse_bef_date_prob+=(stats.norm.cdf(change_dates[index+1], worse_mean, worse_std)-stats.norm.cdf(t, worse_mean, worse_std))*new_worse_prob
 		
-		# print("\n")
+		print("\n")
 
 	return better_prob_list, worse_prob_list
 
 def initialise_batch(days, batch_population):
 	batch_list=np.ones(days)*batch_population
-	# print("batch_list = ", batch_list)
+	print("batch_list = ", batch_list)
 	better_prob_list=batch_list*better_prob
 	better_prob_list_original=copy.copy(better_prob_list)
-	# print("better_prob_list = ", better_prob_list)
+	print("better_prob_list = ", better_prob_list)
 	worse_prob_list=batch_list*worse_prob
 	worse_prob_list_original=copy.copy(worse_prob_list)
-	# print("worse_prob_list = ", worse_prob_list)
+	print("worse_prob_list = ", worse_prob_list)
 	# cure_ability_list=np.ones(days) # dummy, so that the final plotting function doesn't complain.
 	return batch_list, better_prob_list, better_prob_list_original, worse_prob_list, worse_prob_list_original
 
@@ -227,9 +227,6 @@ if __name__ == '__main__':
 				for i in range(0, batch_counter-1):
 					daily_total_worse+=worse_dict[i][j-i]
 					daily_total_better+=better_dict[i][j-i]
-				print("第", j, "天")
-				print("今日康复", daily_total_better)
-				print("今日死亡", daily_total_worse)
 				better_final_list[j]=daily_total_better
 				worse_final_list[j]=daily_total_worse
 				better_final_cumu_list[j]=sum(better_final_list)
@@ -308,8 +305,8 @@ if __name__ == '__main__':
 	# ax3.set_xlabel('x')
 
 	# plot_curves(dates, better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list, cure_ability_list, batch_list)
-	# print("remain_list = ", remain_list)
-	# print("better_cumu_list = ", better_cumu_list)
-	# print("worse_cumu_list = ", worse_cumu_list)
+	print("remain_list = ", remain_list)
+	print("better_cumu_list = ", better_cumu_list)
+	print("worse_cumu_list = ", worse_cumu_list)
 	# probability_dict={"better": 0.2, "worse": 0.3}
 	# change_state(probability_dict)
