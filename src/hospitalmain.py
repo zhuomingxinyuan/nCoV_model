@@ -21,7 +21,7 @@ class HospitalModelParam:
     worse_std:恶化的方差
     batch_population：一开始运行的在院病人数量
     """
-    days=20
+    days = 30
     worse_prob = 0.1
     better_prob = 1 - worse_prob
     better_mean = 10
@@ -50,9 +50,14 @@ class HospitalModelRunParam:
     # (4,0.8)#tuple list, with first element = date the change starts,
     #  second element=updated machine supply rate. List order doesn't matter
     # 在运行时需要保存的原始治疗率对象
-    cure_ability_list_original= []
+    cure_ability_list_original = []
     # 在运行时需要保存的病历变化的时间。
-    change_dates_original= []
+    change_dates_original = []
+
+    # 运行时的参数：
+    # 床位数量
+    bedallnum = 300
+
 
 class HospitalBatch:
     """用来存放各批次的数据的类
@@ -117,6 +122,8 @@ class ModelResult:
     empty_beds = []
     # 保存每批次信息的对象。
     batchobjs = []
+    # 滞留等待医院接收的人数。（适用于方舱医院）
+    waitforaccept=[]
 
     def __init__(self, days):
         self.better_final_list = np.zeros(days)
@@ -133,6 +140,7 @@ class ModelResult:
         self.worse_final_list = np.zeros(days)
         self.better_final_cumu_list = np.zeros(days)
         self.worse_final_cumu_list = np.zeros(days)
+        self.waitforaccept=np.zeros(days)
 
 
 class HospitalModel:
@@ -142,9 +150,9 @@ class HospitalModel:
     def __init__(self, modelparam, runparam):
         # 用于存储参数用的两个变量
         # 模型一些固定的参数
-        self.modelparam=modelparam
+        self.modelparam = modelparam
         # 一些比较运行时改变的参数或一些经常发生变动的参数
-        self.runparam=runparam
+        self.runparam = runparam
         days = self.modelparam.days
 
         # 保存模型结果的对象
@@ -187,11 +195,13 @@ class HospitalModel:
         dates = list(range(days))
         better_cumu = 0
         worse_cumu = 0
-        remain = batchobj.batch_list[0]
+        # remain = batchobj.batch_list[0]
         for t in dates:
             # 按照分布产生每日的病情改善和恶化分布
-            better = self.daily_prob(t, self.modelparam.better_mean, self.modelparam.better_std) * batchobj.better_prob_list[t]
-            worse = self.daily_prob(t, self.modelparam.worse_mean, self.modelparam.worse_std) * batchobj.worse_prob_list[t]
+            better = round(self.daily_prob(t, self.modelparam.better_mean,
+                                           self.modelparam.better_std) * batchobj.better_prob_list[t])
+            worse = round(self.daily_prob(t, self.modelparam.worse_mean,
+                                          self.modelparam.worse_std) * batchobj.worse_prob_list[t])
             better_cumu += better
             # set as a counter instead of recalculating cumulative probability for easy implementation of interventions.
             worse_cumu += worse
@@ -204,10 +214,9 @@ class HospitalModel:
             batchobj.worse_cumu_list.append(worse_cumu)
             batchobj.remain_list.append(remain)
 
-        return dates,batchobj
+        return dates, batchobj
 
-
-    #### 画图 ####
+    # 画图 ####
     # 画出单批次的数据
     def plot_curves(self, batchobj):
         plt.clf()
@@ -271,7 +280,7 @@ class HospitalModel:
     def plot_curves3(self, modelResult):
         # 可以采用以下方法新建一张图
         # figure2 = plt.figure(2)
-        plt.clf()
+        # plt.clf()
         dates = list(range(self.modelparam.days))
         better_final_cumu_list =np.cumsum(self.modelResult.better_final_list)
         worse_final_cumu_list = np.cumsum(self.modelResult.worse_final_list)
@@ -288,20 +297,23 @@ class HospitalModel:
         plt.xlabel("Dates")
         plt.legend(loc='upper right')
         plt.show()
-        plt.close()
+        # plt.close()
 
         return
 
     # 医院介入，拿走*个病人
     # 更新同期病人在院外的剩余人数 #####
-    def intervention_take_out_patients(self,date, take_number, batch_list):
+    @staticmethod
+    def intervention_take_out_patients(date, take_number, batch_list):
         for i in range(date, len(batch_list)):
             batch_list[i] -= take_number
         return batch_list
 
     # 医院介入后，改变的概率
     # 院外模型中可以在oop中使用的，同期病人部分被医院收治后，每日好转和恶化的概率更新
-    def intervention_take_out_patients_change_prob_lists(self,date, remain_before_date_prob, better_prob_list, worse_prob_list):
+    @staticmethod
+    def intervention_take_out_patients_change_prob_lists(date, remain_before_date_prob,
+                                                         better_prob_list, worse_prob_list):
         for i in range(date, len(better_prob_list)):
             better_prob_list[i] *= remain_before_date_prob  # 条件概率的应用，P(A|B)*P(B)= P(B|A)*P(A) = P()
         for i in range(date, len(worse_prob_list)):
@@ -317,7 +329,8 @@ class HospitalModel:
 
     # 医院内的设备参数对整个概率的改变，对改善概率和恶化概率的改变
     # 针对一次医力变化，对之后的好转和恶化概率做list更新 ####
-    def intervention_hospital_supply_change_step(self, date, new_better_prob_ratio, new_worse_prob_ratio,batchobj):
+    @staticmethod
+    def intervention_hospital_supply_change_step(date, new_better_prob_ratio, new_worse_prob_ratio, batchobj):
         # 使用原始的original数据，是因为要根据最初的状态来进行变化。
         # 而不是用可能中间已经变化的数据来算。
         for i in range(date, len(batchobj.better_prob_list)):
@@ -348,7 +361,8 @@ class HospitalModel:
                 # print("breathing_machine_supply_list", breathing_machine_supply_list)
 
         # 由于外部传入的氧气改变的日子，顺序不确定，所以需要整理一下，并重新排序一下
-        change_dates = [x[0] for x in self.runparam.oxygen_change_list] + [x[0] for x in self.runparam.breathing_machine_change_list]
+        change_dates = [x[0] for x in self.runparam.oxygen_change_list] + \
+                       [x[0] for x in self.runparam.breathing_machine_change_list]
         change_dates.sort()
         change_dates = np.unique(change_dates)
         # print(change_dates)
@@ -364,7 +378,7 @@ class HospitalModel:
 
     # 根据改变的时间，来调整改善和恶化的概率分布。
     # 模拟周期内，医院医力多次变化，计算更新后的每日好转与恶化的概率list，需要保证总概率=1，单项概率>=0 ####
-    def intervention_hospital_supply_change_repeated(self,batchobj):
+    def intervention_hospital_supply_change_repeated(self, batchobj):
         # 先获得初步的病情改善概率和恶化概率，
         # 介入前的改善概率=正态分布*改善概率，同理，介入前恶化概率=正态分布*恶化概率。
         better_bef_date_prob = (stats.norm.cdf(batchobj.change_dates[0], self.modelparam.better_mean,
@@ -422,7 +436,8 @@ class HospitalModel:
 
             # 使用新的好转和恶化比例系数来更新好转和恶化概率,并保存到batchobj中。
             self.intervention_hospital_supply_change_step(t, new_better_prob_ratio,new_worse_prob_ratio,batchobj)
-            # The ratio 1.4, 0.2 are arbitrary for now and will be calculated based on breathing machine and oxygen supplies.
+            # The ratio 1.4, 0.2 are arbitrary for now and
+            # will be calculated based on breathing machine and oxygen supplies.
             # print("better_prob_list = ", better_prob_list)
             # print("worse_prob_list = ", worse_prob_list)
 
@@ -479,7 +494,7 @@ class HospitalModel:
 
         return
 
-    def acceptpatient(self, dayofsimulate,patientwaitforaccept):
+    def acceptpatient(self, dayofsimulate, patientwaitforaccept):
         """接收从院外模型转过来的数据，并返回接收人员的数量
         :param:
          dayofsimulate: 模拟的第几天
@@ -500,10 +515,61 @@ class HospitalModel:
         else:
             # 原临时测试使用前一天病床数
             # acceptPatientnum=self.modelResult.empty_beds[dayofsimulate-1]
-            # 先暂时不考虑床位限制，全部接收。
-            acceptPatientnum=patientwaitforaccept
+            # 考虑床位限制，床位够则全部接收，不够则只接收床位数。
+            if patientwaitforaccept < self.modelResult.empty_beds[dayofsimulate - 1]:
+                acceptPatientnum=patientwaitforaccept
+            else:
+                acceptPatientnum = self.modelResult.empty_beds[dayofsimulate - 1]
 
-        return acceptPatientnum
+        return int(acceptPatientnum)
+
+    def acceptpatient2(self, dayofsimulate: int, mchwait: int, mchworse: int, outmodelsevere: int):
+        """应用于定点医院的接收病人逻辑
+        :param dayofsimulate: 模拟的第几天
+        :param mchworse: 方舱医院的恶化病人
+        :param mchwait: 方舱医院的等待接收的病人（以前未接收的）
+        :param outmodelsevere: 院外模型的重症患者
+        :return: mchworseaccept ：接收的方舱医院的恶化病人数
+        :return: mchwaitaccept：方舱医院的等待接收的病人接收数
+        :return: outmodelsevereaccept：院外重症病人接收数
+        """
+        mchworseaccept = 0
+        mchwaitaccept = 0
+        outmodelsevereaccept = 0
+
+        if dayofsimulate != 0:
+            # 原临时测试使用前一天病床数
+            # acceptPatientnum=self.modelResult.empty_beds[dayofsimulate-1]
+            # 考虑床位限制，床位够则全部接收，不够则只接收床位数。
+            # 优先顺序规则：优先接收等待的病人，然后再是方舱医院的病人，然后才是院外重症。
+            # 先获得昨天的空床位，
+            nowbed = int(self.modelResult.empty_beds[dayofsimulate - 1])
+            # 先接收等待的病人
+            if mchwait < nowbed:
+                mchwaitaccept = mchwait
+                nowbed -= mchwait
+            else:
+                mchwaitaccept = nowbed
+                nowbed = 0
+            # 再接收方舱医院病人
+            if nowbed != 0:
+                if mchworse < nowbed:
+                    mchworseaccept = mchworse
+                    nowbed -= mchworse
+                else:
+                    mchworseaccept = nowbed
+                    nowbed = 0
+            # 再接收院外重症
+            if nowbed != 0:
+                if outmodelsevere < nowbed:
+                    outmodelsevereaccept = mchworse
+                    nowbed -= outmodelsevere
+                else:
+                    outmodelsevereaccept = nowbed
+                    nowbed = 0
+
+        # 返回以上三个数据
+        return [int(mchwaitaccept), int(mchworseaccept), int(outmodelsevereaccept)]
 
     def start(self):
         """模型启动，进行一些变量初始化工作
@@ -534,7 +600,7 @@ class HospitalModel:
 
         return
 
-    def calbatch(self,batch_counter,acceptPatientnum):
+    def calbatch(self,batch_counter, acceptPatientnum):
         """根据接收到的病人及第几天，对第几批数据进行计算
         :param batch_counter: 第几天
         :param acceptPatientnum: 接收的病人数量
@@ -542,9 +608,9 @@ class HospitalModel:
         """
         modelResult=self.modelResult
         # TODO：这边还需要根据病人程度来进行分组计算。
-        batch_population=acceptPatientnum
+        batch_population= acceptPatientnum
         # batch_population = empty_bed
-        print("new batch number is :" + str(batch_population))
+        print("new batch patient number is :" + str(batch_population))
         # 启动一批新的病人 ###
         batchobj = self.initialise_batch(self.modelparam.days, batch_population)
         # 让医力的变化在正确的同一天，一起影响到不同批次、已经进入到病程不同天的病人 ###
@@ -554,7 +620,7 @@ class HospitalModel:
         # 根据调整后的概率分布，来产生具体的数值。
         self.batch_curves(batchobj)
 
-        ### 用词典记录每个批次的数据 ###
+        # ## 用词典记录每个批次的数据 ###
         # modelResult.better_dict[batch_counter]=batchobj.better_list
         # modelResult.worse_dict[batch_counter]=batchobj.worse_list
         # modelResult.better_cumu_dict[batch_counter]=batchobj.better_cumu_list
@@ -565,7 +631,7 @@ class HospitalModel:
         daily_total_better = 0
         daily_total_worse = 0
         # range()出的list不带最后一个值，所以要加1
-        #for i in range(0, batch_counter + 1):
+        # for i in range(0, batch_counter + 1):
         for i in range(batch_counter):
             # daily_total_worse += modelResult.worse_dict[i][batch_counter - i]
             # daily_total_better += modelResult.better_dict[i][batch_counter - i]
@@ -573,12 +639,21 @@ class HospitalModel:
             daily_total_better += modelResult.batchobjs[i].better_list[batch_counter - i]
 
         # 算出今日的床位（？）
-        empty_bed = daily_total_worse + daily_total_better
+        # =床位总数-（每日的恶化人员+好转人员）
+        empty_bed = self.runparam.bedallnum-(daily_total_worse + daily_total_better)
+
+        # 如果有滞留人员
+        # 如果不是第一天，则床位要减去滞留人员
+        if batch_counter != 0:
+            empty_bed = empty_bed-modelResult.waitforaccept[batch_counter]
+            # 如果滞留人员过多，则导致没有床位。
+            if empty_bed < 0:
+                empty_bed = 0
 
         # 把今日结果保存到模型结果集对象中
-        modelResult.daily_total_betters[batch_counter]=daily_total_better
-        modelResult.daily_total_worses[batch_counter]=daily_total_worse
-        modelResult.empty_beds[batch_counter]=empty_bed
+        modelResult.daily_total_betters[batch_counter] = daily_total_better
+        modelResult.daily_total_worses[batch_counter] = daily_total_worse
+        modelResult.empty_beds[batch_counter] = empty_bed
 
         # print("第", batch_counter, "天")
         # print("今日康复", daily_total_better)
@@ -592,13 +667,29 @@ class HospitalModel:
 
         return
 
+    def refreshwaitpatient(self, dayofsimulation, mchwaitaccept, mchworseaccept):
+        """适用于方舱医院的规则，有可能定点医院拒绝接收，导致滞留人员，
+        因此需要将这个人数回馈给医院
+        :param:mchwaitaccept 被定点接收的昨天原等待病人数
+        :param: mchworseaccept 被定点接收的昨天恶化人数
+        :return: 无
+        """
+        # 等待的未接收的数量
+        leftwait = self.modelResult.waitforaccept[dayofsimulation - 1] - mchwaitaccept
+        # 昨日方舱医院恶化病人未接收的数量
+        leftmchworse = self.modelResult.worse_final_list[dayofsimulation - 1] - mchworseaccept
+
+        self.modelResult.waitforaccept[dayofsimulation] = leftwait+leftmchworse
+
+        return
+
     # 输出模型的结果
     def outputResult(self):
 
         # 绘出每个批次的数据，绘在同个图上
-        self.plot_curves2(self.modelResult.batchobjs)
+        # self.plot_curves2(self.modelResult.batchobjs)
         # 显示批次的图。
-        plt.show()
+        # plt.show()
         # 有需要时进行清除
         # plt.clf()
 
@@ -615,7 +706,6 @@ class HospitalModel:
                 daily_total_better += self.modelResult.batchobjs[i].better_list[j - i]
             self.modelResult.better_final_list[j] = daily_total_better
             self.modelResult.worse_final_list[j] = daily_total_worse
-
 
         # 需要时调用绘图程序，绘出总的结果数据
         self.plot_curves3(self.modelResult)
@@ -700,14 +790,15 @@ def testmodel():
 
 def testmodel2():
     """测试模型2，启动方舱和定点医院两种类型的模拟。
+    现已经改为从院外驱动，本代码暂时不调用。
     方舱医院：mobilecabinHospital=>简称mch
     定点医院：designatedHospital=>简称dsh
 
     :return: 无
     """
     # 先建立方舱医院
-    mchmodelparam=HospitalModelParam()
-    mchrunparam=HospitalModelRunParam()
+    mchmodelparam = HospitalModelParam()
+    mchrunparam = HospitalModelRunParam()
     # 假设方舱医院的氧气和呼吸机是满足的，即不需要改变病程。
     mchrunparam.oxygen_change_list=[]
     mchrunparam.breathing_machine_change_list=[]
@@ -715,25 +806,25 @@ def testmodel2():
     mchmodel=HospitalModel(mchmodelparam,mchrunparam)
     mchmodel.start()
 
-    #定点医院初始化
+    # 定点医院初始化
     dshmodelparam = HospitalModelParam()
     dshrunparam = HospitalModelRunParam()
     # 假设定点医院的参数均按照原来的参数进行变化，即有病程变化
     dshmodel = HospitalModel(dshmodelparam, dshrunparam)
     dshmodel.start()
 
-    #假设两个医院运行同个时间长
+    # 假设两个医院运行同个时间长
     number_of_batches = mchmodelparam.days
     # 模拟多期病人的处理，真实情形应该是从院外每天调用，
     # 开始进入接收病人的处理。
 
-    #先模拟假设每天院外输入轻症100，重症50
+    # 先模拟假设每天院外输入轻症100，重症50
     outsidepatient={"mildPatient":100,"severePatient":50}
     for batch_counter in range(number_of_batches):
         # TODO：还需要针对院外模型进行接入。
         # 初步测试，还没有从院外模型接入参数，等各病程转换比较清楚后再接入
         # 第一天的时候
-        if batch_counter==0:
+        if batch_counter == 0:
             mchacceptPatientnum=0
             dshacceptPatientnum=0
             mchmodel.calbatch(batch_counter, mchacceptPatientnum)
@@ -742,8 +833,8 @@ def testmodel2():
             # 方舱医院的新增病人为每日增加进来的轻症病人
             mchacceptPatientnum = mchmodel.acceptpatient(batch_counter,outsidepatient['mildPatient'])
             mchmodel.calbatch(batch_counter, mchacceptPatientnum)
-            print ("yesterday mc hospital severeman is "+str(mchmodel.modelResult.worse_final_list[batch_counter-1]))
-            #定点医院的新增病人来源为：每日增加进来的重症病人+方舱医院前一天的重症病人
+            print("yesterday mc hospital severeman is "+str(mchmodel.modelResult.worse_final_list[batch_counter-1]))
+            # 定点医院的新增病人来源为：每日增加进来的重症病人+方舱医院前一天的重症病人
             patientwaittfordshospital=mchmodel.modelResult.worse_final_list[batch_counter-1]+outsidepatient['severePatient']
             dshacceptPatientnum=dshmodel.acceptpatient(batch_counter,patientwaittfordshospital)
             dshmodel.calbatch(batch_counter,dshacceptPatientnum)
@@ -764,21 +855,22 @@ def main():
 # 主程序，可供测试的范例。
 if __name__ == '__main__':
     # 现改为使用测试模型来进行模拟。
-    testmodel2()
+    # testmodel2()
 
-    #### 必要参数 #########
-    # for days in range(1,6): #用for loop可以让医院一天一天跑，每天把结果输出。range最低1天，0天跑不了，但可以从多天起跑。下面氧气和呼吸机供应率的更新日期最大可以是days-1日， 而且理论上应该根据每日收治的病人情况来每日更新计算。
+    # ### 必要参数 #########
+    # for days in range(1,6):
+    # 用for loop可以让医院一天一天跑，每天把结果输出。range最低1天，0天跑不了，但可以从多天起跑。
+    # 下面氧气和呼吸机供应率的更新日期最大可以是days-1日， 而且理论上应该根据每日收治的病人情况来每日更新计算。
 
+    # 单批同期病人的病情曲线，可以有很多天 ###
 
-    ### 单批同期病人的病情曲线，可以有很多天 ###
-
-    #只运行一批次的测试代码
+    # 只运行一批次的测试代码
     # hospitalModel.run_single_batch()
 
-    ### 医院每天结算一次空床，每天收治一批病人
-    ### 目前的简化院内模型中，院内只有一种病人，要么出院，要么死亡，没有中间过渡病程。
+    # 医院每天结算一次空床，每天收治一批病人
+    # 目前的简化院内模型中，院内只有一种病人，要么出院，要么死亡，没有中间过渡病程。
 
-   #运行多批次的测试代码，暂时不考虑输入病人，而以每天空的病床数作为新的病人添加进来
+    # 运行多批次的测试代码，暂时不考虑输入病人，而以每天空的病床数作为新的病人添加进来
     # modelResult=hospitalModel.run_hospital()
 
     # 测试性的输出结果。没有太大意义。
@@ -786,7 +878,7 @@ if __name__ == '__main__':
     # print("daily_total_worse = ", modelResult.daily_total_worses[-1])
     # print("\n")
 
-    ### 如果用oop，可以用当日概率掷骰子
+    # 如果用oop，可以用当日概率掷骰子
     # probability_dict={"better": 0.2, "worse": 0.3}
     # change_state(probability_dict)
 
