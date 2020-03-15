@@ -82,12 +82,12 @@ def intervention_take_out_patients_change_prob_lists(date, remain_before_date_pr
 	return better_prob_list, worse_prob_list
 
 
-def intervention_hospital_supply_increase(date, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list):
-	for i in range(date, len(better_prob_list)):
-		better_prob_list[i]*=new_better_prob_ratio
-	for i in range(date, len(worse_prob_list)):
-		worse_prob_list[i]*=new_worse_prob_ratio
-	return better_prob_list, worse_prob_list
+# def intervention_hospital_supply_increase(date, new_better_prob_ratio, new_worse_prob_ratio, better_prob_list, worse_prob_list):
+# 	for i in range(date, len(better_prob_list)):
+# 		better_prob_list[i]*=new_better_prob_ratio
+# 	for i in range(date, len(worse_prob_list)):
+# 		worse_prob_list[i]*=new_worse_prob_ratio
+# 	return better_prob_list, worse_prob_list
 
 
 # def cal_new_better_worse_ratios(breathing_machine_supply_rate, oxygen_supply_rate, better_prob, worse_prob):
@@ -106,7 +106,7 @@ if __name__ == '__main__':
 	better_std=5
 	worse_mean=7
 	worse_std=3
-	batch_population=100 # set to 1 if we want the probabilities instead of numbers of people in the batch as outputs.
+	batch_population=1000 # set to 1 if we want the probabilities instead of numbers of people in the batch as outputs.
 	batch_list=np.ones(days)*batch_population
 	print("batch_list = ", batch_list)
 	better_prob_list=batch_list*better_prob
@@ -114,7 +114,7 @@ if __name__ == '__main__':
 	worse_prob_list=batch_list*worse_prob
 	print("worse_prob_list = ", worse_prob_list)
 	############ this block takes out patients (can toggle on and off, but has to be here, don't change order) #####################################
-	take_out_date=10
+	take_out_date=8
 	take_out_number=20
 	batch_list=intervention_take_out_patients(take_out_date, take_out_number, batch_list) # how intervention happens once. Need to put in a loop to intervene everyday.
 	print("new batch_list = ", batch_list)

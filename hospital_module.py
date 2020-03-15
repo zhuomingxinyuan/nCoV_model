@@ -5,21 +5,6 @@ import matplotlib.pyplot as plt
 import operator
 import copy
 
-### oop中可以用来在概率之间掷骰子 ###
-def change_state(probability_dict:dict): # probability_dict={'better': 0.2, 'worse': 0.3}
-	dice=random.random()
-	print("roll dice = ", dice)
-	prob_better=probability_dict["better"]
-	prob_worse=prob_better + probability_dict["worse"]
-	if dice <= prob_better:
-		state="better"
-	elif dice <= prob_worse:
-		state="worse"
-	else:
-		state="remain"
-	print("result state is ", state)
-	return state
-
 ### 每日新增概率 ###
 def daily_prob(day, mu, std): 
 	prob=stats.norm.cdf(day+1, mu, std) - stats.norm.cdf(day, mu, std)
@@ -123,7 +108,7 @@ def cal_cure_ability(breathing_machine_supply_list, oxygen_supply_list, oxygen_c
 	return cure_ability_list, change_dates
 
 #### 模拟周期内，医院医力多次变化，计算更新后的每日好转与恶化的概率list，需要保证总概率=1，单项概率>=0 ####
-def intervention_hospital_supply_change_repeated(cure_ability_list, change_dates, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original, better_mean, better_std, worse_mean, worse_std):
+def intervention_hospital_supply_change_repeated(cure_ability_list, change_dates, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original, better_mean, better_std, worse_mean, worse_std, better_prob, worse_prob):
 
 	better_bef_date_prob=(stats.norm.cdf(change_dates[0], better_mean, better_std))*better_prob
 	worse_bef_date_prob=(stats.norm.cdf(change_dates[0], worse_mean, worse_std))*worse_prob
@@ -173,7 +158,7 @@ def intervention_hospital_supply_change_repeated(cure_ability_list, change_dates
 	return better_prob_list, worse_prob_list
 
 ### 每日新增的同期病人自己开启一个新曲线集 ###
-def initialise_batch(days, batch_population):
+def initialise_batch(days, batch_population, better_prob, worse_prob):
 	batch_list=np.ones(days)*batch_population
 	#print("batch_list = ", batch_list)
 	better_prob_list=batch_list*better_prob
@@ -252,10 +237,10 @@ def run_hospital(days, better_prob, worse_prob, better_mean, better_std, worse_m
 		else:	### all but the last row of subplot 每日病人曲线集，按天从上往下画。
 			batch_population=empty_bed #目前假设医院每天都是满员运转。考虑不满员，就在这里对比一下排队人数，然后注意算对剩下的空床，明天跟新空的床一起让排队病人进来。
 			### 启动一批病人 ###
-			batch_list, better_prob_list, better_prob_list_original, worse_prob_list, worse_prob_list_original = initialise_batch(days,batch_population)
+			batch_list, better_prob_list, better_prob_list_original, worse_prob_list, worse_prob_list_original = initialise_batch(days, batch_population, better_prob, worse_prob)
 			### 让医力的变化在正确的同一天，一起影响到不同批次、已经进入到病程不同天的病人 ###
 			cure_ability_list, change_dates = shift_cure_ability_list(cure_ability_list_original, change_dates_original, batch_counter)
-			better_prob_list, worse_prob_list = intervention_hospital_supply_change_repeated(cure_ability_list, change_dates, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original, better_mean, better_std, worse_mean, worse_std)
+			better_prob_list, worse_prob_list = intervention_hospital_supply_change_repeated(cure_ability_list, change_dates, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original, better_mean, better_std, worse_mean, worse_std, better_prob, worse_prob)
 			dates, better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list, batch_list=batch_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean, better_std, worse_mean, worse_std)
 			### 用词典记录每个批次的数据 ###
 			better_dict[batch_counter]=better_list
@@ -303,7 +288,7 @@ def run_single_batch(days, better_prob, worse_prob, better_mean, better_std, wor
 	oxygen_supply_list=np.ones(days) #默认实力全开
 	batch_list, better_prob_list, better_prob_list_original, worse_prob_list, worse_prob_list_original = initialise_batch(days,batch_population)
 	cure_ability_list, change_dates = cal_cure_ability(breathing_machine_supply_list, oxygen_supply_list, oxygen_change_list, breathing_machine_change_list)
-	better_prob_list, worse_prob_list = intervention_hospital_supply_change_repeated(cure_ability_list, change_dates, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original, better_mean, better_std, worse_mean, worse_std)
+	better_prob_list, worse_prob_list = intervention_hospital_supply_change_repeated(cure_ability_list, change_dates, better_prob_list, worse_prob_list, better_prob_list_original, worse_prob_list_original, better_mean, better_std, worse_mean, worse_std, better_prob, worse_prob)
 	dates, better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list, batch_list=batch_curves(days, batch_list, better_prob_list, worse_prob_list, better_mean, better_std, worse_mean, worse_std)
 	plot_curves(dates, better_list, worse_list, better_cumu_list, worse_cumu_list, remain_list, cure_ability_list, batch_list)
 	return
