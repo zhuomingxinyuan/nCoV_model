@@ -502,7 +502,7 @@ class Epidemic:
         # 初始化医院模型
         self.initHosModel()
 
-    # 进行模拟
+    # 进行模拟,主要调用的启动程序
     def Simulate(self):
 
         InputParam = dict()
@@ -638,7 +638,7 @@ class Epidemic:
         dshmodelparam = hospitalmain.HospitalModelParam()
         dshrunparam = hospitalmain.HospitalModelRunParam()
         # 测试改变定点医院的床位数据
-        dshrunparam.bedallnum = 100
+        dshrunparam.bedstartnum = 150
         # 假设定点医院的参数均按照原来的参数进行变化，即有病程变化
         self.dshmodel = hospitalmain.HospitalModel(dshmodelparam, dshrunparam)
         self.dshmodel.start()
@@ -646,31 +646,32 @@ class Epidemic:
 
         return
 
-    # 调用院内模型，获得数据，应是每天运行的。
     def SendRequest2HosModel(self, dayofSimulation:int, preDayData:PerDayData):
-        # dayofSimulation,表示模拟的第几天，好让医院根据实际情况返回数据。
-        # preDayData:前一天的数据。
-
-        # 向院内模型发送数据,需要将传进来的参数发送出去。
-        # 根据院内模型返回结果来获得数据
-        # 医院只决定接收多少个重症，多少个轻症。而与病程没有关系：
-        # 因此决定送谁过去由院外来决定。
-        # 医院返回的接收病人数不能大于发过去的病人总数。
-        # 先模拟医院返回结果，每天只接收**重症，多少轻症。
+        """调用院内模型，获得数据，应是每天运行的。
+        向院内模型发送数据,需要将传进来的参数发送出去。
+        根据院内模型返回结果来获得数据
+        医院只决定接收多少个重症，多少个轻症。而与病程没有关系：
+        因此决定送谁过去由院外来决定。
+        医院返回的接收病人数不能大于发过去的病人总数。
+        先模拟医院返回结果，每天只接收**重症，多少轻症。
+        :param dayofSimulation: 模拟的第几天，好让医院根据实际情况返回数据。
+        :param preDayData: 前一天的数据，因为要在一天开始时运行，医院准备接收病人
+        :return: 无
+        """
 
         # 与院内模型进行交互
-        # 如果是第一天
+        # 如果是第一天, 则不接受病人
         if dayofSimulation == 0:
-            mchacceptPatientnum = 0
+            mchaccept_patientnum = 0
             outmodelsevereaccept = 0
-            dshacceptPatientnum = 0
-            self.mchmodel.calbatch(dayofSimulation, mchacceptPatientnum)
-            self.dshmodel.calbatch(dayofSimulation, dshacceptPatientnum)
+            dshaccept_patientnum = 0
+            self.mchmodel.calbatch(dayofSimulation, mchaccept_patientnum)
+            self.dshmodel.calbatch(dayofSimulation, dshaccept_patientnum)
         else:
             # 方舱医院的新增病人为每日增加进来的轻症病人
-            mchacceptPatientnum = self.mchmodel.acceptpatient(dayofSimulation, preDayData.MildMan)
+            mchaccept_patientnum = self.mchmodel.acceptpatient(dayofSimulation, preDayData.MildMan)
             # 方舱医院开始今日的计算
-            self.mchmodel.calbatch(dayofSimulation, mchacceptPatientnum)
+            self.mchmodel.calbatch(dayofSimulation, mchaccept_patientnum)
             print("yeserday mchospital severeman is " +
                   str(self.mchmodel.modelResult.worse_final_list[dayofSimulation - 1]))
 
@@ -686,12 +687,12 @@ class Epidemic:
             self.mchmodel.refreshwaitpatient(dayofSimulation, mchwaitaccept, mchworseaccept)
 
             # 总的接收数量
-            dshacceptPatientnum = mchwaitaccept+mchworseaccept+outmodelsevereaccept
+            dshaccept_patientnum = mchwaitaccept+mchworseaccept+outmodelsevereaccept
             # 开始计算定点医院的每日过程
-            self.dshmodel.calbatch(dayofSimulation, dshacceptPatientnum)
+            self.dshmodel.calbatch(dayofSimulation, dshaccept_patientnum)
 
         # 定义返回对象
-        hosAcceptObj = HospitalAcceptObj(outmodelsevereaccept, mchacceptPatientnum)
+        hosAcceptObj = HospitalAcceptObj(outmodelsevereaccept, mchaccept_patientnum)
 
         # 以下为各种情况测试
         # if dayofSimulation>5:

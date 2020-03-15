@@ -9,6 +9,7 @@
 # 用于进行数据输出的工具
 # import pandas as pd
 from src.epidemic import Epidemic
+import time
 # 主程序，用于进行测试控制
 
 
@@ -48,7 +49,7 @@ detailcourseParam["AsymptomPercent"] = 0.30
 # 无症状人员转轻症平均天数
 detailcourseParam["AverAsym2Mild"] = 7
 # 无症状人员转轻症时间方差
-detailcourseParam["varianceAsym2Mild"] =3
+detailcourseParam["varianceAsym2Mild"] = 3
 # 无症状人员转痊愈平均天数
 detailcourseParam["AverAsym2Recovery"] = 14
 # 无症状人员转痊愈时间方差
@@ -64,8 +65,10 @@ epidemicStartParam = {
     "DayofStimulate": DayofStimulate,
     "DetailCourseParam": detailcourseParam
 }
+# print("start" + str(time.clock()))
 # 启动病程模拟对象。
 epidemic = Epidemic(epidemicStartParam)
 epidemic.Simulate()
 
+# print("finish" + str(time.clock()))
 print("finish")
