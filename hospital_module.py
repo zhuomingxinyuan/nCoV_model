@@ -204,6 +204,7 @@ def run_hospital(days, better_prob, worse_prob, better_mean, better_std, worse_m
 	empty_bed=batch_population
 	daily_total_better=0 # sum up total bed release for the day from all batches of patients
 	daily_total_worse=0
+	batch_population_list=[]
 
 	### 画图 ###
 	fig, axs = plt.subplots(nrows=number_of_batches+1, sharex=True)
@@ -235,7 +236,9 @@ def run_hospital(days, better_prob, worse_prob, better_mean, better_std, worse_m
 			ax.set_ylabel("Total")
 			ax.set_xlabel("Dates")
 		else:	### all but the last row of subplot 每日病人曲线集，按天从上往下画。
+			
 			batch_population=empty_bed #目前假设医院每天都是满员运转。考虑不满员，就在这里对比一下排队人数，然后注意算对剩下的空床，明天跟新空的床一起让排队病人进来。
+			batch_population_list.append(batch_population)
 			### 启动一批病人 ###
 			batch_list, better_prob_list, better_prob_list_original, worse_prob_list, worse_prob_list_original = initialise_batch(days, batch_population, better_prob, worse_prob)
 			### 让医力的变化在正确的同一天，一起影响到不同批次、已经进入到病程不同天的病人 ###
@@ -275,12 +278,16 @@ def run_hospital(days, better_prob, worse_prob, better_mean, better_std, worse_m
 			ax.set_ylabel("Day {}".format(batch_counter))
 			batch_counter+=1
 	
-	print("第", number_of_batches, "天") #这个天数比batch counter要大1，就是人看着舒服点，其实第一天是在说从第0到第1天这24个小时，在代码运算里是第0天。
-	print("今日康复", daily_total_better)
-	print("今日死亡", daily_total_worse)
-	plt.show()
-	plt.close()
-	return daily_total_better, daily_total_worse
+	# print("第", number_of_batches, "天") #这个天数比batch counter要大1，就是人看着舒服点，其实第一天是在说从第0到第1天这24个小时，在代码运算里是第0天。
+	# print("今日康复", daily_total_better)
+	# print("今日死亡", daily_total_worse)
+	# print("累计康复列表 = ", better_final_cumu_list)
+	# print("累计死亡列表 = ", worse_final_cumu_list)
+	# print("收治新增人数列表 = ", batch_population_list)
+
+	# plt.show()
+	# plt.close()
+	return daily_total_better, daily_total_worse, better_final_cumu_list, worse_final_cumu_list, batch_population_list
 
 ### 单批同期病人的病情曲线，可以有很多天 ###
 def run_single_batch(days, better_prob, worse_prob, better_mean, better_std, worse_mean, worse_std, batch_population, number_of_batches, oxygen_change_list, breathing_machine_change_list):
@@ -295,28 +302,64 @@ def run_single_batch(days, better_prob, worse_prob, better_mean, better_std, wor
 
 if __name__ == '__main__':
 	#### 必要参数 #########
-	# for days in range(1,6): #用for loop可以让医院一天一天跑，每天把结果输出。range最低1天，0天跑不了，但可以从多天起跑。下面氧气和呼吸机供应率的更新日期最大可以是days-1日， 而且理论上应该根据每日收治的病人情况来每日更新计算。
-	days=20
-	worse_prob=0.1
-	better_prob=1-worse_prob
-	better_mean=10
-	better_std=5
-	worse_mean=7
-	worse_std=3
-	batch_population=100 # set to 1 if we want the probabilities instead of numbers of people in the batch as outputs.
-	number_of_batches = days # 假设每天新增一批病人，
-	oxygen_change_list=[(0,0.3), (5,0.5), (9,1)] #(1,0.6), (9, 0.8) #tuple list, with first element = date the change starts, second element=updated oxygen supply rate. List order doesn't matter
-	breathing_machine_change_list=[(7,0.4), (10,1), (15,0.5)] #(4,0.8)#tuple list, with first element = date the change starts, second element=updated machine supply rate. List order doesn't matter
-	       
+	date_list=[]
+	better_perc=[]
+	worse_perc=[]
+	f = open("hospital_tests.txt","w") 
+	f.write("模拟天数  参数治愈率  总收治人数  总治愈   总死亡 \n")
+	# for days in range(1,51): #用for loop可以让医院一天一天跑，每天把结果输出。range最低1天，0天跑不了，但可以从多天起跑。下面氧气和呼吸机供应率的更新日期最大可以是days-1日， 而且理论上应该根据每日收治的病人情况来每日更新计算。
+	days=50
+	worse_rate_list=[]
+	for worse_prob in np.arange(0.1, 1, 0.1):
+		worse_rate_list.append(worse_prob)
+		# date_list.append(days)
+		# worse_prob=0.1
+		better_prob=1-worse_prob
+		better_mean=10
+		better_std=5
+		worse_mean=7
+		worse_std=3
+		batch_population=100 # set to 1 if we want the probabilities instead of numbers of people in the batch as outputs.
+		number_of_batches = days # 假设每天新增一批病人，
+		oxygen_change_list=[] #(0,0.3), (5,0.5), (9,1) (1,0.6), (9, 0.8) #tuple list, with first element = date the change starts, second element=updated oxygen supply rate. List order doesn't matter
+		breathing_machine_change_list=[] #(7,0.4), (10,1), (15,0.5)(4,0.8)#tuple list, with first element = date the change starts, second element=updated machine supply rate. List order doesn't matter
+		       
 
-	### 单批同期病人的病情曲线，可以有很多天 ###
-	run_single_batch(days, better_prob, worse_prob, better_mean, better_std, worse_mean, worse_std, batch_population, number_of_batches, oxygen_change_list, breathing_machine_change_list)
+		### 单批同期病人的病情曲线，可以有很多天 ###
+		# run_single_batch(days, better_prob, worse_prob, better_mean, better_std, worse_mean, worse_std, batch_population, number_of_batches, oxygen_change_list, breathing_machine_change_list)
+		
+		### 医院每天结算一次空床，每天收治一批病人 ### 目前的简化院内模型中，院内只有一种病人，要么出院，要么死亡，没有中间过渡病程。
+		daily_total_better, daily_total_worse, better_final_cumu_list, worse_final_cumu_list, batch_population_list=run_hospital(days, better_prob, worse_prob, better_mean, better_std, worse_mean, worse_std, batch_population, number_of_batches, oxygen_change_list, breathing_machine_change_list)
+		# print("daily_total_better = ", daily_total_better)
+		# print("daily_total_worse = ", daily_total_worse)
+		print("模拟天数 = ", days)
+		print("收治新增人数列表 = ", batch_population_list)
+		print("治愈率 = ", better_prob)
+		print("阶段治愈人数 = ", better_final_cumu_list[-1])
+		print("阶段死亡人数 = ", worse_final_cumu_list[-1])
+		print("收治总人数 = ", sum(batch_population_list))
+		print("阶段治愈率 = ", better_final_cumu_list[-1]/sum(batch_population_list))
+		print("阶段死亡率 = ", worse_final_cumu_list[-1]/sum(batch_population_list))
+		print("\n")
+
+		better_perc.append(better_final_cumu_list[-1]/sum(batch_population_list))
+		worse_perc.append(worse_final_cumu_list[-1]/sum(batch_population_list))
+		f.write("{:d} {:.1f} {:.1f} {:.1f} {:.1f} \n".format(days,  better_prob,  sum(batch_population_list),  better_final_cumu_list[-1],   worse_final_cumu_list[-1]))
+	f.close()
 	
-	### 医院每天结算一次空床，每天收治一批病人 ### 目前的简化院内模型中，院内只有一种病人，要么出院，要么死亡，没有中间过渡病程。
-	daily_total_better, daily_total_worse=run_hospital(days, better_prob, worse_prob, better_mean, better_std, worse_mean, worse_std, batch_population, number_of_batches, oxygen_change_list, breathing_machine_change_list)
-	print("daily_total_better = ", daily_total_better)
-	print("daily_total_worse = ", daily_total_worse)
-	print("\n")
+	print("worse_rate_list = ", worse_rate_list)
+	print("better_perc = ", better_perc)
+	print("worse_perc = ", worse_perc)
+
+	# plt.plot(days, better_perc, color='grey', marker='o', markersize=3, linestyle='-', label='better%') 
+	# plt.plot(days, worse_perc, color='red', marker='o', markersize=3, linestyle='-', label='worse%')     
+	# plt.xlabel('Days')
+	# plt.ylabel('Probability') 
+	# plt.legend(loc='upper right')
+	# plt.title('Better_prob=0.1')
+	# plt.show()  
+
+
 
     ### 如果用oop，可以用当日概率掷骰子
 	# probability_dict={"better": 0.2, "worse": 0.3}
