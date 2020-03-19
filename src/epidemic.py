@@ -6,6 +6,7 @@ from enum import Enum
 # 从同目录中引入SIModel对象类。
 from . import SIModel
 from . import hospitalmain
+from . import hospitalManager
 
 # import src.SIModel as SIModel
 
@@ -79,7 +80,9 @@ class PerDayData:
         # 由于定义的规则，每天计算过全部批次人员的状态变化后，才计算新增加的患者。
         # 新增加的患者，为创建新一批数据后，还需要更新本日的统计人数。因此使用此方法进行更新。
         # 轻症患者增加，未感染人减少。
-        self.MildMan += newInfectMan
+        # self.MildMan += newInfectMan
+        # 200317重新调整：默认情况下修改默认均为无症患者
+        self.AsymMan += newInfectMan
         self.UnInfectMan -= newInfectMan
         return
 
@@ -109,7 +112,8 @@ class HospitalAcceptObj:
         self.SevereMan = SevereMan
         self.MildMan = MildMan
 
-#代表状态
+
+# 代表病人状态
 class IllManStatus(Enum):
     ASYM = 1  # 无症状
     MILD = 2  # 轻症
@@ -489,6 +493,9 @@ class Epidemic:
     # 保存每日的数据对象。
     daysData = []
 
+    # 医院管理者
+    hospitalmanager = None
+
     # 使用外界输入的参数进行一些参数设置。
     def __init__(self, param):
         self.Population = param["TotalPopulation"]
@@ -600,6 +607,8 @@ class Epidemic:
 
         # 输出总的模型计算结果，汇总各日数据，并产生图表。
         self.OutputResult()
+        # 调用院内模型，输出结果
+        self.hospitalmanager.outputresult()
 
         return
 
@@ -624,24 +633,8 @@ class Epidemic:
 
         :return: 无
         """
-        # 先建立方舱医院
-        mchmodelparam = hospitalmain.HospitalModelParam()
-        mchrunparam = hospitalmain.HospitalModelRunParam()
-        # 假设方舱医院的氧气和呼吸机是满足的，即不需要改变病程。
-        mchrunparam.oxygen_change_list = []
-        mchrunparam.breathing_machine_change_list = []
-        # 开始建立模型，并启动。
-        self.mchmodel = hospitalmain.HospitalModel(mchmodelparam, mchrunparam)
-        self.mchmodel.start()
+        self.hospitalmanager = hospitalManager.HospitalManager(hospitalManager.HospitalType.MCDS_INDEPENDENT.value)
 
-        # 定点医院初始化
-        dshmodelparam = hospitalmain.HospitalModelParam()
-        dshrunparam = hospitalmain.HospitalModelRunParam()
-        # 测试改变定点医院的床位数据
-        dshrunparam.bedstartnum = 150
-        # 假设定点医院的参数均按照原来的参数进行变化，即有病程变化
-        self.dshmodel = hospitalmain.HospitalModel(dshmodelparam, dshrunparam)
-        self.dshmodel.start()
 
 
         return
@@ -660,41 +653,12 @@ class Epidemic:
         """
 
         # 与院内模型进行交互
-        # 如果是第一天, 则不接受病人
-        if dayofSimulation == 0:
-            mchaccept_patientnum = 0
-            outmodelsevereaccept = 0
-            dshaccept_patientnum = 0
-            self.mchmodel.calbatch(dayofSimulation, mchaccept_patientnum)
-            self.dshmodel.calbatch(dayofSimulation, dshaccept_patientnum)
-        else:
-            # 方舱医院的新增病人为每日增加进来的轻症病人
-            mchaccept_patientnum = self.mchmodel.acceptpatient(dayofSimulation, preDayData.MildMan)
-            # 方舱医院开始今日的计算
-            self.mchmodel.calbatch(dayofSimulation, mchaccept_patientnum)
-            print("yeserday mchospital severeman is " +
-                  str(self.mchmodel.modelResult.worse_final_list[dayofSimulation - 1]))
-
-            # 定点医院的新增病人来源为：原来未被接收在等待的方舱医院病人+方舱医院前一天的重症病人+每日增加进来的重症病人
-            [mchwaitaccept, mchworseaccept, outmodelsevereaccept] = self.dshmodel.acceptpatient2(
-                dayofSimulation, self.mchmodel.modelResult.waitforaccept[dayofSimulation-1],
-                self.mchmodel.modelResult.worse_final_list[dayofSimulation - 1], preDayData.SevereMan
-            )
-            print("dshhospital accept %d mchWorse wait to accept, "
-                  "%d mchWorse today, %d outSevere " % (mchwaitaccept, mchworseaccept, outmodelsevereaccept))
-
-            # 根据接收数目再更新到方舱医院数据中。
-            self.mchmodel.refreshwaitpatient(dayofSimulation, mchwaitaccept, mchworseaccept)
-
-            # 总的接收数量
-            dshaccept_patientnum = mchwaitaccept+mchworseaccept+outmodelsevereaccept
-            # 开始计算定点医院的每日过程
-            self.dshmodel.calbatch(dayofSimulation, dshaccept_patientnum)
+        hosacceptobj = self.hospitalmanager.acceptpatient(dayofSimulation, preDayData)
 
         # 定义返回对象
-        hosAcceptObj = HospitalAcceptObj(outmodelsevereaccept, mchaccept_patientnum)
+        # hosAcceptObj = HospitalAcceptObj(outmodelsevereaccept, mchaccept_patientnum)
 
-        # 以下为各种情况测试
+        # 以下可用于各种情况测试，不调用院内模型，直接给值。
         # if dayofSimulation>5:
         #     hosAcceptObj=HospitalAcceptObj(0,50)
         # else:
@@ -704,7 +668,8 @@ class Epidemic:
         # hosAcceptObj = HospitalAcceptObj(0, 0)
         # hosAcceptObj=HospitalAcceptObj(random.randint(50,60),100)
         # hosAcceptObj = HospitalAcceptObj(2*dayofSimulation, 5*dayofSimulation)
-        return hosAcceptObj
+
+        return hosacceptobj
 
     # 根据医院可接收的数量，来进行每批次人员调整
     def ChangeBatchsByHosAcceptObj2(self, hosAcceptObj, perBatchData, dayofCourse):
@@ -872,14 +837,6 @@ class Epidemic:
         plt.legend()
         plt.show()
 
-        # 画出院内模型的结果
-        plt.figure(2)
-        self.mchmodel.outputResult()
-        plt.title('MC hospital Model result', fontsize='large', fontweight='bold')
 
-        # 画出院内模型的结果
-        plt.figure(3)
-        self.dshmodel.outputResult()
-        plt.title('DE hospital Model result', fontsize='large', fontweight='bold')
 
         return
